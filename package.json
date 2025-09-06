@@ -1,0 +1,32 @@
+{
+  "name": "wms-netsis-entegre",
+  "version": "1.0.0",
+  "private": true,
+  "type": "commonjs",
+  "scripts": {
+    "dev": "NODE_ENV=development node backend/server.js",
+    "start": "NODE_ENV=production node backend/server.js",
+    "start:full": "NODE_ENV=production node deployment-db-setup.js && node backend/server.js",
+    "migrate": "node backend/db/migrate.js",
+    "migrate:railway": "node backend/db/migrate-railway.js",
+    "seed": "node backend/db/seed.js",
+    "db:setup": "node deployment-db-setup.js",
+    "db:backup": "node -e \"const DbManager = require('./backend/db/database-manager'); new DbManager().createBackup('manual').then(r => console.log(r));\"",
+    "db:restore": "node -e \"const DbManager = require('./backend/db/database-manager'); const name = process.argv[2]; if(!name) {console.log('Usage: npm run db:restore backup_name.db'); process.exit(1);} new DbManager().restoreFromBackup(name).then(r => console.log(r));\"",
+    "db:list": "node -e \"const DbManager = require('./backend/db/database-manager'); new DbManager().listBackups().then(r => r.success && r.backups.forEach(b => console.log(b.name + ' - ' + b.age)));\"",
+    "db:export": "node -e \"const DbManager = require('./backend/db/database-manager'); new DbManager().exportDatabase().then(r => console.log(r));\""
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "axios-ntlm": "^1.4.4",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-session": "^1.18.2",
+    "httpntlm": "^1.8.13",
+    "node-fetch": "^2.7.0",
+    "pdfkit": "^0.13.0",
+    "sqlite3": "^5.1.6"
+  }
+}
