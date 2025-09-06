@@ -730,12 +730,6 @@
   </div>
 </header>
 
-<div class="page-actions" style="padding: 16px; background: var(--card); border-bottom: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end;">
-  <a href="/add-order.html" class="action-btn" style="background: linear-gradient(135deg, #28a745, #20c997); color: white;">
-    <span class="btn-icon">➕</span>
-    <span class="btn-text">Yeni Sipariş</span>
-  </a>
-</div>
 
 <main class="grid" style="max-width:1200px;margin:auto;padding:16px">
   <section class="card">
@@ -1057,13 +1051,24 @@ function displayOrders(orders) {
       const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
       
       if (isFullyFulfilled) {
-        // Tamamlanmış harici siparişler için irsaliye butonu ekle
+        // Tamamlanmış harici siparişler için hem irsaliye oluştur hem PDF butonları
         const hasDispatchNote = o.netsis_delivery_note_id;
+        let dispatchBtn = '';
+        let pdfBtn = '';
+        
         if (hasDispatchNote) {
-          pickBtn = `<button class="action-btn btn-pick" disabled title="İrsaliye oluşturuldu: ${hasDispatchNote}" style="background:#28a745;color:white;">📋 İrsaliye (${hasDispatchNote})</button>`;
+          dispatchBtn = `<button class="action-btn btn-pick" disabled title="İrsaliye oluşturuldu: ${hasDispatchNote}" style="background:#28a745;color:white;margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
         } else {
-          pickBtn = `<button class="action-btn btn-dispatch" data-dispatch="${o.id}" title="Netsis'te irsaliye oluştur" style="background:#007bff;color:white;">📋 İrsaliye Oluştur</button>`;
+          dispatchBtn = `<button class="action-btn btn-dispatch" data-dispatch="${o.id}" title="Netsis'te irsaliye oluştur" style="background:#007bff;color:white;margin-right:4px;">📋 İrsaliye Oluştur</button>`;
         }
+        
+        if (o.pick_id) {
+          pdfBtn = `<button class="action-btn btn-pdf-invoice" data-pick-id="${o.pick_id}" title="İrsaliye PDF'ini indir" style="background:#dc3545;color:white;">📄 PDF İrsaliye</button>`;
+        } else {
+          pdfBtn = `<button class="action-btn" disabled title="Pick ID bulunamadı" style="background:#6c757d;color:white;">📄 PDF Yok</button>`;
+        }
+        
+        pickBtn = dispatchBtn + pdfBtn;
       } else {
         pickBtn = `<button class="action-btn btn-pick btn-external" data-external-pick="${o.id}" title="Harici sipariş toplamaya başla" style="background:#28a745;color:white;">📦 Harici Topla</button>`;
       }
@@ -1078,13 +1083,24 @@ function displayOrders(orders) {
       const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
       
       if (isFullyFulfilled) {
-        // Tamamlanmış siparişler için irsaliye butonu
+        // Tamamlanmış siparişler için hem irsaliye oluştur hem PDF butonları
         const hasDispatchNote = o.netsis_delivery_note_id;
+        let dispatchBtn = '';
+        let pdfBtn = '';
+        
         if (hasDispatchNote) {
-          pickBtn = `<button class="action-btn btn-pick" disabled title="İrsaliye oluşturuldu: ${hasDispatchNote}" style="background:#28a745;color:white;">📋 İrsaliye (${hasDispatchNote})</button>`;
+          dispatchBtn = `<button class="action-btn btn-pick" disabled title="İrsaliye oluşturuldu: ${hasDispatchNote}" style="background:#28a745;color:white;margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
         } else {
-          pickBtn = `<button class="action-btn btn-dispatch" data-dispatch="${o.id}" title="Netsis'te irsaliye oluştur" style="background:#007bff;color:white;">📋 İrsaliye Oluştur</button>`;
+          dispatchBtn = `<button class="action-btn btn-dispatch" data-dispatch="${o.id}" title="Netsis'te irsaliye oluştur" style="background:#007bff;color:white;margin-right:4px;">📋 İrsaliye Oluştur</button>`;
         }
+        
+        if (o.pick_id) {
+          pdfBtn = `<button class="action-btn btn-pdf-invoice" data-pick-id="${o.pick_id}" title="İrsaliye PDF'ini indir" style="background:#dc3545;color:white;">📄 PDF İrsaliye</button>`;
+        } else {
+          pdfBtn = `<button class="action-btn" disabled title="Pick ID bulunamadı" style="background:#6c757d;color:white;">📄 PDF Yok</button>`;
+        }
+        
+        pickBtn = dispatchBtn + pdfBtn;
       } else {
         // Açık siparişler, kısmen karşılanmış veya karşılanmamış siparişler tolanabilir
         if (o.fulfillment_status === 'PARTIALLY_FULFILLED') {
@@ -1189,11 +1205,19 @@ function displayOrders(orders) {
         // Harici siparişler için mobil buton
         const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
         if (isFullyFulfilled) {
-          // Tamamlanmış harici siparişler için irsaliye butonu
+          // Tamamlanmış harici siparişler için irsaliye ve PDF butonları (mobil)
           const hasDispatchNote = o.netsis_delivery_note_id;
-          if (hasDispatchNote) {
+          if (hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-success-mobile';
+            mobileBtn = `<button class="${btnClass}" disabled style="margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
+          } else if (hasDispatchNote && !o.pick_id) {
             btnClass += ' btn-success-mobile';
             mobileBtn = `<button class="${btnClass}" disabled>📋 İrsaliye (${hasDispatchNote})</button>`;
+          } else if (!hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}" style="margin-right:4px;">📋 İrsaliye Oluştur</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
           } else {
             btnClass += ' btn-primary-mobile';
             mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}">📋 İrsaliye Oluştur</button>`;
@@ -1211,11 +1235,19 @@ function displayOrders(orders) {
       } else {
         const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
         if (isFullyFulfilled) {
-          // Tamamlanmış siparişler için irsaliye butonu
+          // Tamamlanmış siparişler için irsaliye ve PDF butonları (mobil)
           const hasDispatchNote = o.netsis_delivery_note_id;
-          if (hasDispatchNote) {
+          if (hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-success-mobile';
+            mobileBtn = `<button class="${btnClass}" disabled style="margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
+          } else if (hasDispatchNote && !o.pick_id) {
             btnClass += ' btn-success-mobile';
             mobileBtn = `<button class="${btnClass}" disabled>📋 İrsaliye (${hasDispatchNote})</button>`;
+          } else if (!hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}" style="margin-right:4px;">📋 İrsaliye Oluştur</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
           } else {
             btnClass += ' btn-primary-mobile';
             mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}">📋 İrsaliye Oluştur</button>`;
@@ -1504,6 +1536,19 @@ document.body.addEventListener('click', async (e) => {
     } finally {
       e.target.disabled = false;
       e.target.textContent = originalText;
+    }
+  }
+  
+  // PDF İrsaliye indirme
+  const pdfPickId = e.target.getAttribute('data-pick-id');
+  if (pdfPickId) {
+    try {
+      // PDF'i yeni sekmede aç
+      const pdfUrl = `/api/picks/${pdfPickId}/delivery-note.pdf`;
+      window.open(pdfUrl, '_blank');
+    } catch (error) {
+      console.error('PDF indirme hatası:', error);
+      alert('PDF indirilemedi: ' + error.message);
     }
   }
   

@@ -234,6 +234,21 @@
         </a>
       </div>
     </div>
+
+    <!-- Raporlama Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">📈</span>
+        <span class="nav-text">Raporlama</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/reports.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Stok Raporları</span>
+        </a>
+      </div>
+    </div>
   </nav>
   <div id="mobileNav" class="mobile-nav">
     <button id="mobileNavToggle" class="mobile-nav-toggle">
@@ -300,6 +315,13 @@
         <a href="/ssh-inventory.html" class="mobile-nav-link">
           <span class="nav-icon">📋</span>
           <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Raporlama</span>
+        <a href="/reports.html" class="mobile-nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Stok Raporları</span>
         </a>
       </div>
     </div>
@@ -439,6 +461,48 @@
     </div>
   </section>
 
+  <!-- Raporlama -->
+  <div class="module-group">
+    <h2>📈 Raporlama ve Analitik</h2>
+    <div class="module-cards">
+      <a href="/reports.html" class="module-card">
+        <div class="module-icon">📊</div>
+        <div class="module-info">
+          <h3>Stok Raporları</h3>
+          <p>Envanter durumu ve hareket raporları</p>
+        </div>
+      </a>
+      <a href="/reports.html#low-stock" class="module-card">
+        <div class="module-icon">⚠️</div>
+        <div class="module-info">
+          <h3>Düşük Stok Uyarısı</h3>
+          <p>Kritik seviyedeki ürünleri görüntüle</p>
+        </div>
+      </a>
+      <a href="/reports.html#abc-analysis" class="module-card">
+        <div class="module-icon">🔤</div>
+        <div class="module-info">
+          <h3>ABC Analizi</h3>
+          <p>Ürün performans sınıflandırması</p>
+        </div>
+      </a>
+      <a href="/reports.html#stock-movement" class="module-card">
+        <div class="module-icon">🔄</div>
+        <div class="module-info">
+          <h3>Stok Hareketleri</h3>
+          <p>Giriş/çıkış hareket raporları</p>
+        </div>
+      </a>
+      <a href="/reports.html#variance" class="module-card">
+        <div class="module-icon">📋</div>
+        <div class="module-info">
+          <h3>Sayım Varyansı</h3>
+          <p>Envanter sayım sonuç analizleri</p>
+        </div>
+      </a>
+    </div>
+  </div>
+
   <!-- Sistem Yönetimi -->
   <section class="card">
     <h2>🛠️ Sistem Yönetimi</h2>
@@ -452,10 +516,6 @@
           <span class="btn-icon">🔐</span>
           <span class="btn-text">Rol İzinleri</span>
         </a>
-        <button class="action-btn" id="syncAllBtn">
-          <span class="btn-icon">🔄</span>
-          <span class="btn-text">Wix Senkronizasyonu</span>
-        </button>
         <button class="action-btn" id="checkHealth">
           <span class="btn-icon">🏥</span>
           <span class="btn-text">Sistem Durumu</span>
@@ -494,7 +554,6 @@ const API = {
   products: () => fetch('/api/products').then(r => r.json()),
   orders: () => fetch('/api/orders').then(r => r.json()),
   shelves: () => fetch('/api/shelves').then(r => r.json()),
-  syncWixAll: () => fetch('/api/sync/wix/all', {method: 'POST'}).then(r => r.json()),
   
   // Auth API
   checkAuth: () => fetch('/api/auth/check', { credentials: 'include' }).then(r => r.json()),
@@ -808,39 +867,6 @@ document.getElementById('checkHealth').addEventListener('click', async () => {
   }
 });
 
-// Wix senkronizasyonu
-document.getElementById('syncAllBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('syncAllBtn');
-  const originalText = btn.innerHTML;
-  
-  btn.innerHTML = '<span class="btn-icon">⏳</span><span class="btn-text">Senkronize Ediliyor...</span>';
-  btn.disabled = true;
-
-  try {
-    const result = await API.syncWixAll();
-    console.log('Sync result:', result);
-    
-    // Başarı mesajı
-    if (result.products?.ok && result.orders?.ok) {
-      alert(`Senkronizasyon başarılı!\nÜrünler: +${result.products.imported}\nSiparişler: +${result.orders.importedOrders}`);
-      
-      // Sync zamanlarını güncelle
-      const now = new Date().toLocaleString('tr-TR');
-      document.getElementById('lastProductSync').textContent = now;
-      document.getElementById('lastOrderSync').textContent = now;
-      
-      // Dashboard'u yenile
-      await loadDashboard();
-    } else {
-      alert('Senkronizasyonda sorun var. Detaylar için konsolu kontrol edin.');
-    }
-  } catch (error) {
-    alert('Senkronizasyon hatası: ' + error.message);
-  } finally {
-    btn.innerHTML = originalText;
-    btn.disabled = false;
-  }
-});
 
 // Mobile navigation toggle
 document.getElementById('mobileNavToggle').addEventListener('click', () => {

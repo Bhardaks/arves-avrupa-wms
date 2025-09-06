@@ -241,19 +241,18 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
       <h2>Tarayıcı</h2>
       <div style="display:flex;gap:8px;">
-        <div id="locationVerifyStatus" style="background:#6c757d;color:white;padding:8px 16px;border-radius:6px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:bold;">
-          <span id="locationVerifyIcon">🔓</span>
-          <span id="locationVerifyText">Lokasyon Teyit: OPSİYONEL</span>
+        <div id="locationVerifyStatus" style="background:#dc3545;color:white;padding:8px 16px;border-radius:6px;display:flex;align-items:center;gap:8px;cursor:pointer;font-weight:bold;" title="Lokasyon teyit modunu değiştirmek için tıklayın">
+          <span id="locationVerifyIcon">🔒</span>
+          <span id="locationVerifyText">Lokasyon Teyit: ZORUNLU</span>
         </div>
       </div>
     </div>
     <div class="flex" style="margin-top:16px;gap:12px;">
-      <input id="manual" placeholder="Ürün Barkodunu Okutun" class="scanner-input" style="flex:1;font-size:20px;padding:16px;text-align:center;" />
+      <input id="manual" placeholder="1. Ürün Barkodunu Okutun (Lokasyon Teyit Zorunlu)" class="scanner-input" style="flex:1;font-size:20px;padding:16px;text-align:center;" />
       <button id="enter" class="btn-large" style="background:#22c55e;color:white;min-width:120px;">Ekle</button>
     </div>
-    <div class="grid" style="grid-template-columns: 1fr 1fr;">
+    <div class="grid" style="grid-template-columns: 1fr;">
       <div><strong>Son Okunan:</strong> <span id="last"></span></div>
-      <div style="text-align:right"><a id="pdfLink" target="_blank">İrsaliye PDF</a></div>
     </div>
   </section>
 
@@ -280,8 +279,8 @@ const externalOrderId = url.searchParams.get('external');
 let pickData=null;
 let currentlyViewedItemId = null; // Hangi item'ın package details'i açık
 
-// Lokasyon teyit sistemi - Opsiyonel
-let locationVerificationEnabled = false; // Varsayılan olarak kapalı
+// Lokasyon teyit sistemi - Zorunlu
+let locationVerificationEnabled = true; // Varsayılan olarak zorunlu açık
 let pendingPackageBarcode = null;
 let isWaitingForLocationScan = false;
 
@@ -438,7 +437,6 @@ async function loadPick(){
         </div>`
       }).join('');
     }
-    $('#pdfLink').href = '/api/picks/'+pickId+'/delivery-note.pdf';
   } catch(error) {
     console.error('Pick yükleme hatası:', error);
     alert('Pick yüklenemedi: ' + error.message);

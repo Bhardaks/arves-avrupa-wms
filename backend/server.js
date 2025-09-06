@@ -3498,7 +3498,7 @@ app.post('/api/picks/:id/reset', async (req, res) => {
   }
 });
 
-// Delivery note PDF
+// Delivery note PDF with better Turkish character support and layout
 app.get('/api/picks/:id/delivery-note.pdf', async (req, res) => {
   const { id } = req.params;
   const pick = await get('SELECT * FROM picks WHERE id=?', [id]);
@@ -3515,182 +3515,234 @@ app.get('/api/picks/:id/delivery-note.pdf', async (req, res) => {
   res.setHeader('Content-Type', 'application/pdf');
   res.setHeader('Content-Disposition', `inline; filename="irsaliye-${order.order_number}.pdf"`);
 
+  // Function to convert Turkish characters for better PDF compatibility
+  const turkishToSafe = (text) => {
+    if (!text) return '';
+    return text.toString()
+      .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+      .replace(/ü/g, 'u').replace(/Ü/g, 'U') 
+      .replace(/ş/g, 's').replace(/Ş/g, 'S')
+      .replace(/ı/g, 'i').replace(/İ/g, 'I')
+      .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+      .replace(/ç/g, 'c').replace(/Ç/g, 'C');
+  };
+
   const doc = new PDFDocument({ 
-    margin: 50,
+    margin: 40,
     size: 'A4',
+    bufferPages: true,
     info: {
-      Title: `İrsaliye - ${order.order_number}`,
+      Title: `Irsaliye - ${order.order_number}`,
       Author: 'WMS Sistemi',
-      Subject: 'Sevk İrsaliyesi',
+      Subject: 'Sevk Irsaliyesi',
       Creator: 'WMS - Warehouse Management System'
     }
   });
   doc.pipe(res);
 
-  // Turkish font support - use built-in fonts that support Turkish characters
+  // Define layout constants
+  const pageWidth = 595.28;
+  const margin = 40;
+  const contentWidth = pageWidth - (margin * 2);
+  
+  // Define fonts
   const regularFont = 'Helvetica';
   const boldFont = 'Helvetica-Bold';
 
-  // Header section with company info
-  doc.fontSize(20).font(boldFont).text('SEVK İRSALİYESİ', { align: 'center' });
-  doc.fontSize(12).font(regularFont).text('DELIVERY NOTE', { align: 'center' });
+  // Header section
+  doc.fontSize(24).font(boldFont);
+  doc.text(turkishToSafe('SEVK IRSALIYESI'), margin, 60, { align: 'center', width: contentWidth });
   
-  // Draw a line under header
-  doc.moveTo(50, doc.y + 10).lineTo(545, doc.y + 10).stroke();
-  doc.moveDown(2);
-
-  // Order information section
-  const infoStartY = doc.y;
+  doc.fontSize(14).font(regularFont);
+  doc.text('DELIVERY NOTE', margin, 90, { align: 'center', width: contentWidth });
+  
+  // Header line
+  doc.moveTo(margin, 120).lineTo(pageWidth - margin, 120).lineWidth(2).stroke();
+  
+  // Company info section
+  let currentY = 140;
+  doc.fontSize(16).font(boldFont);
+  doc.text('ARVES AVRUPA LOJISTIK', margin, currentY, { align: 'center', width: contentWidth });
+  
+  currentY += 25;
+  doc.fontSize(10).font(regularFont);
+  doc.text('Warehouse Management System', margin, currentY, { align: 'center', width: contentWidth });
+  
+  // Order and customer information
+  currentY += 40;
+  const infoBoxHeight = 80;
+  
+  // Left box - Order Info
+  doc.rect(margin, currentY, (contentWidth / 2) - 10, infoBoxHeight).stroke();
   doc.fontSize(12).font(boldFont);
+  doc.text(turkishToSafe('SIPARIS BILGILERI'), margin + 10, currentY + 10);
   
-  // Left column - Order Info
-  doc.text('SİPARİŞ BİLGİLERİ', 50, infoStartY);
-  doc.font(regularFont).fontSize(10);
-  doc.text(`Sipariş No: ${order.order_number}`, 50, doc.y + 5);
-  doc.text(`Tarih: ${new Date(order.created_at).toLocaleDateString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  })}`, 50, doc.y + 5);
-  doc.text(`Durum: ${order.status}`, 50, doc.y + 5);
-  doc.text(`Pick ID: ${pick.id}`, 50, doc.y + 5);
+  doc.fontSize(10).font(regularFont);
+  doc.text(`Siparis No: ${order.order_number || ''}`, margin + 10, currentY + 25);
+  doc.text(`Tarih: ${new Date(order.created_at).toLocaleDateString('tr-TR')}`, margin + 10, currentY + 38);
+  doc.text(turkishToSafe(`Durum: ${order.status || ''}`), margin + 10, currentY + 51);
+  doc.text(`Pick ID: ${pick.id}`, margin + 10, currentY + 64);
 
-  // Right column - Customer Info  
+  // Right box - Customer Info
+  const rightBoxX = margin + (contentWidth / 2) + 10;
+  doc.rect(rightBoxX, currentY, (contentWidth / 2) - 10, infoBoxHeight).stroke();
   doc.fontSize(12).font(boldFont);
-  doc.text('MÜŞTERİ BİLGİLERİ', 300, infoStartY);
-  doc.font(regularFont).fontSize(10);
-  doc.text(`Müşteri: ${order.customer_name || 'Belirtilmemiş'}`, 300, infoStartY + 20);
-  doc.text(`Teslimat Adresi:`, 300, doc.y + 5);
-  doc.text(`${order.shipping_address || 'Adres bilgisi mevcut değil'}`, 300, doc.y + 5);
+  doc.text(turkishToSafe('MUSTERI BILGILERI'), rightBoxX + 10, currentY + 10);
   
-  doc.moveDown(2);
-  
-  // Draw separator line
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-  doc.moveDown();
+  doc.fontSize(10).font(regularFont);
+  const customerName = turkishToSafe(order.customer_name || 'Belirtilmemis');
+  doc.text(`Musteri: ${customerName}`, rightBoxX + 10, currentY + 25);
+  doc.text(turkishToSafe('Teslimat Adresi:'), rightBoxX + 10, currentY + 38);
+  const address = turkishToSafe(order.shipping_address || 'Adres bilgisi mevcut degil');
+  doc.text(address.length > 35 ? address.substring(0, 35) + '...' : address, rightBoxX + 10, currentY + 51);
 
-  // Items table header
-  doc.fontSize(12).font(boldFont);
-  doc.text('ÜRÜN LİSTESİ', { align: 'center' });
-  doc.moveDown();
-
-  // Table headers
-  const tableTop = doc.y;
-  const itemHeight = 25;
+  // Items section
+  currentY += infoBoxHeight + 30;
   
+  doc.fontSize(14).font(boldFont);
+  doc.text(turkishToSafe('URUN LISTESI'), margin, currentY, { align: 'center', width: contentWidth });
+  
+  currentY += 30;
+  
+  // Table setup
+  const tableStartY = currentY;
+  const rowHeight = 22;
+  
+  // Column positions and widths
+  const cols = [
+    { x: margin, width: 30, title: 'No' },
+    { x: margin + 35, width: 80, title: 'Urun Kodu' },
+    { x: margin + 120, width: 200, title: 'Urun Adi' },
+    { x: margin + 325, width: 50, title: 'Renk' },
+    { x: margin + 380, width: 50, title: 'Miktar' },
+    { x: margin + 435, width: 50, title: 'Toplanan' },
+    { x: margin + 490, width: 60, title: 'Durum' }
+  ];
+  
+  // Table header
   doc.fontSize(10).font(boldFont);
-  doc.text('SIRA', 50, tableTop, { width: 30 });
-  doc.text('ÜRÜN KODU', 85, tableTop, { width: 80 });
-  doc.text('ÜRÜN ADI', 170, tableTop, { width: 180 });
-  doc.text('RENK', 360, tableTop, { width: 50 });
-  doc.text('MİKTAR', 420, tableTop, { width: 40 });
-  doc.text('TOPLANAN', 470, tableTop, { width: 50 });
-  doc.text('DURUM', 525, tableTop, { width: 40 });
+  cols.forEach(col => {
+    doc.text(turkishToSafe(col.title), col.x, currentY, { 
+      width: col.width, 
+      align: col.title === 'No' || col.title === 'Miktar' || col.title === 'Toplanan' ? 'center' : 'left' 
+    });
+  });
+  
+  currentY += 18;
+  doc.moveTo(margin, currentY).lineTo(pageWidth - margin, currentY).stroke();
+  currentY += 5;
 
-  // Draw table header line
-  doc.moveTo(50, tableTop + 15).lineTo(545, tableTop + 15).stroke();
-
-  // Table content
-  let currentY = tableTop + 20;
+  // Table rows
   doc.font(regularFont).fontSize(9);
-
+  
   items.forEach((item, index) => {
-    // Check if we need a new page
+    // Check for new page
     if (currentY > 700) {
       doc.addPage();
-      currentY = 50;
+      currentY = margin + 20;
+      
+      // Redraw table header on new page
+      doc.fontSize(10).font(boldFont);
+      cols.forEach(col => {
+        doc.text(turkishToSafe(col.title), col.x, currentY, { 
+          width: col.width, 
+          align: col.title === 'No' || col.title === 'Miktar' || col.title === 'Toplanan' ? 'center' : 'left' 
+        });
+      });
+      currentY += 18;
+      doc.moveTo(margin, currentY).lineTo(pageWidth - margin, currentY).stroke();
+      currentY += 5;
+      doc.font(regularFont).fontSize(9);
     }
 
-    const rowNumber = (index + 1).toString();
-    const status = item.picked_qty >= item.quantity ? 'TAM' : item.picked_qty > 0 ? 'KISMEN' : 'BEKLİYOR';
-    const statusColor = item.picked_qty >= item.quantity ? 'green' : item.picked_qty > 0 ? 'orange' : 'red';
+    // Row data
+    const status = item.picked_qty >= item.quantity ? 'TAM' : 
+                   item.picked_qty > 0 ? 'KISMEN' : 'BEKLIYOR';
+    
+    const productName = turkishToSafe(item.product_name || '-');
+    const truncatedName = productName.length > 28 ? productName.substring(0, 28) + '...' : productName;
+    
+    // Draw row
+    doc.text((index + 1).toString(), cols[0].x, currentY, { width: cols[0].width, align: 'center' });
+    doc.text(item.sku || '-', cols[1].x, currentY, { width: cols[1].width });
+    doc.text(truncatedName, cols[2].x, currentY, { width: cols[2].width });
+    doc.text(turkishToSafe(item.product_color || '-'), cols[3].x, currentY, { width: cols[3].width });
+    doc.text(item.quantity.toString(), cols[4].x, currentY, { width: cols[4].width, align: 'center' });
+    doc.text(item.picked_qty.toString(), cols[5].x, currentY, { width: cols[5].width, align: 'center' });
+    doc.text(turkishToSafe(status), cols[6].x, currentY, { width: cols[6].width, align: 'center' });
 
-    doc.text(rowNumber, 50, currentY, { width: 30 });
-    doc.text(item.sku || '-', 85, currentY, { width: 80 });
+    currentY += rowHeight;
     
-    // Handle long product names - wrap text if needed
-    const productName = item.product_name || '-';
-    if (productName.length > 25) {
-      const lines = doc.heightOfString(productName, { width: 180 });
-      doc.text(productName, 170, currentY, { width: 180, height: lines });
-    } else {
-      doc.text(productName, 170, currentY, { width: 180 });
-    }
-    
-    doc.text(item.product_color || '-', 360, currentY, { width: 50 });
-    doc.text(item.quantity.toString(), 420, currentY, { width: 40, align: 'center' });
-    doc.text(item.picked_qty.toString(), 470, currentY, { width: 50, align: 'center' });
-    
-    // Status with color
-    const originalFillColor = doc.fillColor();
-    if (statusColor === 'green') doc.fillColor('green');
-    else if (statusColor === 'orange') doc.fillColor('orange');
-    else if (statusColor === 'red') doc.fillColor('red');
-    
-    doc.text(status, 525, currentY, { width: 40, align: 'center' });
-    doc.fillColor(originalFillColor); // Reset color
-
-    currentY += itemHeight;
-    
-    // Draw row separator line
-    doc.moveTo(50, currentY - 5).lineTo(545, currentY - 5).stroke('#E0E0E0');
+    // Light separator line
+    doc.moveTo(margin, currentY - 2).lineTo(pageWidth - margin, currentY - 2).lineWidth(0.5).stroke('#CCCCCC');
   });
 
   // Summary section
-  doc.moveDown(2);
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-  doc.moveDown();
+  currentY += 20;
+  doc.moveTo(margin, currentY).lineTo(pageWidth - margin, currentY).lineWidth(1).stroke();
+  currentY += 15;
 
   const totalItems = items.length;
   const completedItems = items.filter(item => item.picked_qty >= item.quantity).length;
   const partialItems = items.filter(item => item.picked_qty > 0 && item.picked_qty < item.quantity).length;
+  const pendingItems = totalItems - completedItems - partialItems;
 
-  doc.fontSize(10).font(boldFont);
-  doc.text('ÖZET BİLGİLER', { align: 'center' });
-  doc.moveDown();
+  doc.fontSize(12).font(boldFont);
+  doc.text(turkishToSafe('OZET BILGILER'), margin, currentY, { align: 'center', width: contentWidth });
   
-  doc.font(regularFont);
-  doc.text(`Toplam Kalem Sayısı: ${totalItems}`, 50, doc.y);
-  doc.text(`Tamamlanan: ${completedItems}`, 200, doc.y);
-  doc.text(`Kısmen Toplanan: ${partialItems}`, 350, doc.y);
-  doc.text(`Bekleyen: ${totalItems - completedItems - partialItems}`, 500, doc.y);
+  currentY += 25;
+  doc.fontSize(10).font(regularFont);
+  
+  const summaryData = [
+    `Toplam Kalem: ${totalItems}`,
+    `Tamamlanan: ${completedItems}`,
+    `Kismen: ${partialItems}`,
+    `Bekleyen: ${pendingItems}`
+  ];
+  
+  const summaryWidth = contentWidth / 4;
+  summaryData.forEach((text, index) => {
+    doc.text(turkishToSafe(text), margin + (index * summaryWidth), currentY, { 
+      width: summaryWidth, 
+      align: 'center' 
+    });
+  });
 
-  // Footer section
-  doc.moveDown(3);
-  doc.moveTo(50, doc.y).lineTo(545, doc.y).stroke();
-  doc.moveDown();
+  // Footer and signature section
+  currentY += 40;
+  doc.moveTo(margin, currentY).lineTo(pageWidth - margin, currentY).stroke();
+  currentY += 15;
 
+  // Signature boxes
+  const boxWidth = (contentWidth / 2) - 20;
+  const boxHeight = 70;
+  
+  // Left signature box
+  doc.rect(margin, currentY, boxWidth, boxHeight).stroke();
+  doc.fontSize(11).font(boldFont);
+  doc.text(turkishToSafe('TESLIM EDEN'), margin + 10, currentY + 10);
+  doc.fontSize(9).font(regularFont);
+  doc.text('Ad Soyad: ________________________', margin + 10, currentY + 30);
+  doc.text('Imza: ____________________________', margin + 10, currentY + 45);
+  
+  // Right signature box
+  const rightSigX = margin + boxWidth + 40;
+  doc.rect(rightSigX, currentY, boxWidth, boxHeight).stroke();
+  doc.fontSize(11).font(boldFont);
+  doc.text(turkishToSafe('TESLIM ALAN'), rightSigX + 10, currentY + 10);
+  doc.fontSize(9).font(regularFont);
+  doc.text('Ad Soyad: ________________________', rightSigX + 10, currentY + 30);
+  doc.text('Imza: ____________________________', rightSigX + 10, currentY + 45);
+
+  // Footer info
+  currentY += boxHeight + 25;
   doc.fontSize(8).font(regularFont);
-  doc.text('Bu irsaliye otomatik olarak WMS sistemi tarafından oluşturulmuştur.', { align: 'center' });
-  doc.text(`Oluşturma Tarihi: ${new Date().toLocaleDateString('tr-TR', {
-    day: '2-digit',
-    month: '2-digit', 
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit'
-  })}`, { align: 'center' });
-
-  // Add signature areas
-  doc.moveDown(2);
-  doc.fontSize(10);
+  doc.text(turkishToSafe('Bu irsaliye WMS sistemi tarafindan otomatik olusturulmustur.'), 
+           margin, currentY, { align: 'center', width: contentWidth });
   
-  // Two signature boxes side by side
-  const signatureY = doc.y + 40;
-  
-  // Teslim Eden (Deliverer)
-  doc.rect(50, signatureY, 200, 60).stroke();
-  doc.text('TESLİM EDEN', 60, signatureY + 5);
-  doc.text('Ad Soyad: ............................', 60, signatureY + 25);
-  doc.text('Tarih: ..............................', 60, signatureY + 40);
-  
-  // Teslim Alan (Receiver)
-  doc.rect(300, signatureY, 200, 60).stroke();
-  doc.text('TESLİM ALAN', 310, signatureY + 5);
-  doc.text('Ad Soyad: ............................', 310, signatureY + 25);
-  doc.text('Tarih: ..............................', 310, signatureY + 40);
+  const now = new Date();
+  doc.text(`Olusturma: ${now.toLocaleDateString('tr-TR')} ${now.toLocaleTimeString('tr-TR')}`, 
+           margin, currentY + 12, { align: 'center', width: contentWidth });
 
   doc.end();
 });
@@ -6189,6 +6241,347 @@ app.get('/api/deliveries/:deliveryId', requireAuth, (req, res) => {
 
 // ===================================
 // END DELIVERY CONFIRMATION API
+// ===================================
+
+// ===================================
+// REPORTS API ENDPOINTS
+// ===================================
+
+// 1. Stock Status Report
+app.post('/api/reports/stock-status', requireAuth, async (req, res) => {
+  try {
+    const { category, zone, minStock } = req.body;
+    
+    let query = `
+      SELECT 
+        p.sku,
+        p.name as product_name,
+        COALESCE(SUM(sp.quantity), 0) as stock_quantity,
+        s.shelf_code as location,
+        MAX(sm.created_at) as last_movement
+      FROM products p
+      LEFT JOIN product_packages pp ON p.id = pp.product_id
+      LEFT JOIN shelf_packages sp ON pp.id = sp.package_id
+      LEFT JOIN shelves s ON sp.shelf_id = s.id
+      LEFT JOIN stock_movements sm ON p.id = sm.product_id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (zone) {
+      query += ' AND s.zone = ?';
+      params.push(zone);
+    }
+    
+    if (minStock) {
+      query += ' HAVING stock_quantity >= ?';
+      params.push(minStock);
+    }
+    
+    query += ' GROUP BY p.id ORDER BY p.name';
+    
+    const items = await all(query, params);
+    
+    res.json({
+      success: true,
+      items,
+      summary: {
+        total_products: items.length,
+        total_stock: items.reduce((sum, item) => sum + (item.stock_quantity || 0), 0)
+      }
+    });
+    
+  } catch (error) {
+    console.error('Stock status report error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 2. Low Stock Alert Report
+app.post('/api/reports/low-stock', requireAuth, async (req, res) => {
+  try {
+    const { criticalLevel = 5, warningLevel = 10 } = req.body;
+    
+    const query = `
+      SELECT 
+        p.sku,
+        p.name as product_name,
+        COALESCE(SUM(sp.quantity), 0) as stock_quantity,
+        ? as critical_level,
+        ? as warning_level,
+        CASE 
+          WHEN COALESCE(SUM(sp.quantity), 0) <= ? THEN 'Kritik Stok - Acil Temin'
+          WHEN COALESCE(SUM(sp.quantity), 0) <= ? THEN 'Düşük Stok - Temin Planla'
+          ELSE 'Normal'
+        END as suggestion
+      FROM products p
+      LEFT JOIN product_packages pp ON p.id = pp.product_id
+      LEFT JOIN shelf_packages sp ON pp.id = sp.package_id
+      GROUP BY p.id
+      HAVING stock_quantity <= ?
+      ORDER BY stock_quantity ASC
+    `;
+    
+    const items = await all(query, [criticalLevel, warningLevel, criticalLevel, warningLevel, warningLevel]);
+    
+    res.json({
+      success: true,
+      items,
+      summary: {
+        critical_count: items.filter(i => i.stock_quantity <= criticalLevel).length,
+        warning_count: items.filter(i => i.stock_quantity > criticalLevel && i.stock_quantity <= warningLevel).length
+      }
+    });
+    
+  } catch (error) {
+    console.error('Low stock report error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 3. ABC Analysis Report
+app.post('/api/reports/abc-analysis', requireAuth, async (req, res) => {
+  try {
+    const { startDate, endDate, type = 'value' } = req.body;
+    
+    let query = `
+      SELECT 
+        p.sku,
+        p.name as product_name,
+        COUNT(ps.id) as total_movement,
+        COALESCE(p.price * COUNT(ps.id), 0) as total_value
+      FROM products p
+      LEFT JOIN pick_scans ps ON p.id = ps.product_id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (startDate) {
+      query += ' AND ps.created_at >= ?';
+      params.push(startDate + ' 00:00:00');
+    }
+    
+    if (endDate) {
+      query += ' AND ps.created_at <= ?';
+      params.push(endDate + ' 23:59:59');
+    }
+    
+    query += ' GROUP BY p.id ORDER BY ';
+    query += type === 'value' ? 'total_value DESC' : 'total_movement DESC';
+    
+    const items = await all(query, params);
+    
+    // Calculate ABC classification
+    const totalValue = items.reduce((sum, item) => sum + (item.total_value || 0), 0);
+    let cumulativeValue = 0;
+    
+    const classifiedItems = items.map((item, index) => {
+      cumulativeValue += (item.total_value || 0);
+      const percentage = totalValue > 0 ? (cumulativeValue / totalValue) * 100 : 0;
+      
+      let abc_class = 'C';
+      if (percentage <= 80) abc_class = 'A';
+      else if (percentage <= 95) abc_class = 'B';
+      
+      return {
+        ...item,
+        percentage: (item.total_value || 0) / totalValue * 100,
+        cumulative_percentage: percentage,
+        abc_class
+      };
+    });
+    
+    res.json({
+      success: true,
+      items: classifiedItems,
+      summary: {
+        total_products: items.length,
+        class_a: classifiedItems.filter(i => i.abc_class === 'A').length,
+        class_b: classifiedItems.filter(i => i.abc_class === 'B').length,
+        class_c: classifiedItems.filter(i => i.abc_class === 'C').length
+      }
+    });
+    
+  } catch (error) {
+    console.error('ABC analysis report error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 4. Stock Movement Report
+app.post('/api/reports/stock-movement', requireAuth, async (req, res) => {
+  try {
+    const { startDate, endDate, type } = req.body;
+    
+    let query = `
+      SELECT 
+        sm.created_at,
+        p.sku,
+        p.name as product_name,
+        sm.type,
+        sm.qty,
+        sm.note
+      FROM stock_movements sm
+      JOIN products p ON sm.product_id = p.id
+      WHERE 1=1
+    `;
+    
+    const params = [];
+    
+    if (startDate) {
+      query += ' AND sm.created_at >= ?';
+      params.push(startDate + ' 00:00:00');
+    }
+    
+    if (endDate) {
+      query += ' AND sm.created_at <= ?';
+      params.push(endDate + ' 23:59:59');
+    }
+    
+    if (type) {
+      query += ' AND sm.type = ?';
+      params.push(type);
+    }
+    
+    query += ' ORDER BY sm.created_at DESC';
+    
+    const items = await all(query, params);
+    
+    // Calculate summary
+    const summary = {
+      total_movements: items.length,
+      in_movements: items.filter(i => i.type === 'IN').length,
+      out_movements: items.filter(i => i.type === 'OUT').length,
+      adjust_movements: items.filter(i => i.type === 'ADJUST').length
+    };
+    
+    res.json({
+      success: true,
+      items,
+      summary
+    });
+    
+  } catch (error) {
+    console.error('Stock movement report error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// 5. Inventory Variance Report  
+app.post('/api/reports/variance', requireAuth, async (req, res) => {
+  try {
+    const { countId, varianceType } = req.body;
+    
+    if (!countId) {
+      return res.status(400).json({ success: false, error: 'Count ID required' });
+    }
+    
+    let query = `
+      SELECT 
+        ici.sku,
+        ici.product_name,
+        ici.expected_quantity,
+        ici.counted_quantity,
+        ici.variance,
+        ici.location_code,
+        ici.status
+      FROM inventory_count_items ici
+      WHERE ici.count_id = ?
+    `;
+    
+    const params = [countId];
+    
+    if (varianceType === 'positive') {
+      query += ' AND ici.variance > 0';
+    } else if (varianceType === 'negative') {
+      query += ' AND ici.variance < 0';
+    }
+    
+    query += ' ORDER BY ABS(ici.variance) DESC';
+    
+    const items = await all(query, params);
+    
+    // Get count info
+    const countInfo = await get('SELECT * FROM inventory_counts WHERE id = ?', [countId]);
+    
+    const summary = {
+      count_name: countInfo?.name,
+      count_date: countInfo?.created_date,
+      total_items: items.length,
+      positive_variance: items.filter(i => i.variance > 0).length,
+      negative_variance: items.filter(i => i.variance < 0).length,
+      zero_variance: items.filter(i => i.variance === 0).length
+    };
+    
+    res.json({
+      success: true,
+      items,
+      summary
+    });
+    
+  } catch (error) {
+    console.error('Variance report error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Test data creation endpoint for reports
+app.post('/api/reports/create-test-data', requireAuth, async (req, res) => {
+  try {
+    // Create a test inventory count
+    const countResult = await run(`
+      INSERT INTO inventory_counts (name, type, description, status)
+      VALUES ('Test Sayım Raporu', 'full', 'Test veri oluşturma', 'completed')
+    `);
+    
+    const countId = countResult.lastID;
+    
+    // Get some products to add as count items
+    const products = await all('SELECT * FROM products LIMIT 5');
+    
+    if (products.length === 0) {
+      // Create test products
+      for (let i = 1; i <= 5; i++) {
+        await run(`
+          INSERT INTO products (sku, name, description, price)
+          VALUES (?, ?, ?, ?)
+        `, [`TEST-SKU-${i}`, `Test Ürün ${i}`, `Test açıklama ${i}`, 100 + i * 10]);
+      }
+      
+      const newProducts = await all('SELECT * FROM products WHERE sku LIKE "TEST-SKU-%"');
+      products.push(...newProducts);
+    }
+    
+    // Create test count items with variance
+    for (let i = 0; i < products.length; i++) {
+      const product = products[i];
+      const expected = 10 + i * 2;  // Expected quantity
+      const counted = expected + (i % 2 === 0 ? 2 : -1); // Create variance
+      const variance = counted - expected;
+      
+      await run(`
+        INSERT INTO inventory_count_items 
+        (count_id, product_id, sku, product_name, expected_quantity, counted_quantity, variance, location_code, status)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `, [countId, product.id, product.sku, product.name, expected, counted, variance, `A1-${i+1}-001`, 'counted']);
+    }
+    
+    res.json({
+      success: true,
+      message: `Test sayım kaydı oluşturuldu (ID: ${countId})`,
+      count_id: countId
+    });
+    
+  } catch (error) {
+    console.error('Test data creation error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===================================
+// END REPORTS API
 // ===================================
 
 // Network erişimi için tüm interface'lerde dinle
