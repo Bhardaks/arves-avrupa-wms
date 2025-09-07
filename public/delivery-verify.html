@@ -6,6 +6,7 @@
   <title>Teslimat Teyidi</title>
   <link rel="stylesheet" href="/assets/css/styles.css" />
   <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <script src="/assets/js/smart-barcode-scanner.js"></script>
   <style>
     /* Mobile optimizations for delivery verify page */
     @media (max-width: 768px) {
@@ -302,7 +303,7 @@
       </div>
     </div>
     <div class="flex" style="margin-top:16px;gap:12px;">
-      <input id="deliveryBarcodeInput" placeholder="Paket Barkodunu Okutun" class="scanner-input" style="flex:1;font-size:20px;padding:16px;text-align:center;background:#000;color:#00ff00;border:2px solid #333;" autocomplete="off" />
+      <input id="deliveryBarcodeInput" placeholder="Paket Barkodunu Okutun" class="scanner-input" style="flex:1;font-size:20px;padding:16px;text-align:center;background:#000;color:#00ff00;border:2px solid #333;" />
       <button id="addDeliveryItem" class="btn-large" style="background:#22c55e;color:white;min-width:120px;">Teslim Et</button>
     </div>
     <div class="grid" style="grid-template-columns: 1fr 1fr;margin-top:12px;">
@@ -627,83 +628,46 @@ function focusOnItem(itemId) {
   window.currentItemId = itemId;
 }
 
-// Setup barcode scanning
+// Setup barcode scanning with SmartBarcodeScanner
 function setupBarcodeScanning() {
   const deliveryInput = $('#deliveryBarcodeInput');
   const addButton = $('#addDeliveryItem');
   
-  // Auto-focus barcode input
-  deliveryInput.focus();
-  
-  // Keep focus on barcode input but allow button clicks
-  setInterval(() => {
-    if (document.activeElement !== deliveryInput && 
-        !document.querySelector('.modal-content') && 
-        !document.activeElement.matches('button, .complete-btn, .action-btn')) {
-      deliveryInput.focus();
+  // Initialize SmartBarcodeScanner
+  const deliveryScanner = window.SmartBarcodeScanner.initializeInput(deliveryInput, {
+    placeholder: 'Paket Barkodunu Okutun',
+    preventMobileKeyboard: true,
+    enableManualMode: true,
+    minLength: 6,
+    maxLength: 50,
+    debug: false,
+    onScan: async (barcode, isFromScanner, input) => {
+      console.log(`📱 Teslimat barkodu tarandı: ${barcode} (${isFromScanner ? 'Scanner' : 'Manuel'})`);
+      await processScan(barcode);
+    },
+    onError: (error, barcode, input) => {
+      console.error('Teslimat barkod hatası:', error);
+      showFeedback(`❌ Barkod hatası: ${error.message}`, 'error');
     }
-  }, 100);
+  });
   
-  // Button click handler
+  // Button click handler for manual processing
   addButton.addEventListener('click', async () => {
     const barcode = deliveryInput.value.trim();
     if (barcode.length >= 6) {
       await processScan(barcode);
-      // Input clearing is handled in processScan function
     }
   });
   
-  // Handle barcode scan on Enter key
-  deliveryInput.addEventListener('keydown', async (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      const barcode = deliveryInput.value.trim();
-      
-      if (barcode.length >= 6) {
-        await processScan(barcode);
-        // Input clearing is handled in processScan function
-      } else {
-        deliveryInput.value = '';
-      }
+  // Auto-focus and re-focus system
+  deliveryScanner.focus();
+  setInterval(() => {
+    if (document.activeElement !== deliveryInput && 
+        !document.querySelector('.modal-content') && 
+        !document.activeElement.matches('button, .complete-btn, .action-btn')) {
+      deliveryScanner.focus();
     }
-  });
-  
-  // Auto-submit for barcode scanners (Zebra optimization)
-  let autoSubmitTimer = null;
-  let isManualTyping = false;
-  let lastKeystrokeTime = Date.now();
-  
-  deliveryInput.addEventListener('input', (e) => {
-    const value = e.target.value.trim();
-    const currentTime = Date.now();
-    
-    // Detect scanner vs manual typing
-    const timeSinceLastKeystroke = currentTime - lastKeystrokeTime;
-    if (timeSinceLastKeystroke > 50) {
-      isManualTyping = true;
-    } else if (timeSinceLastKeystroke < 20) {
-      isManualTyping = false;
-    }
-    
-    lastKeystrokeTime = currentTime;
-    
-    // Clear existing timer
-    if (autoSubmitTimer) {
-      clearTimeout(autoSubmitTimer);
-    }
-    
-    // Auto-submit logic
-    if (value.length >= 6) {
-      let delay = isManualTyping ? 2000 : 300;
-      
-      autoSubmitTimer = setTimeout(async () => {
-        if (deliveryInput.value.trim() === value) {
-          await processScan(value);
-          // Input clearing is handled in processScan function
-        }
-      }, delay);
-    }
-  });
+  }, 100);
 }
 
 // Process barcode scan for package-based delivery verification
@@ -734,8 +698,6 @@ async function processScan(barcode) {
     showFeedback(`❌ Bu barkod teslimat kalemlerinde bulunamadı: ${barcode}`, 'error');
     $('#lastScanned').textContent = `❌ ${barcode} (Bulunamadı)`;
     $('#lastScanned').style.color = '#ef4444';
-    $('#deliveryBarcodeInput').value = '';
-    $('#deliveryBarcodeInput').focus();
     return;
   }
   
@@ -753,10 +715,6 @@ async function processScan(barcode) {
       await processSimpleItemDelivery(matchingItem, barcode);
     }
   }
-  
-  // Clear and re-focus input for next scan
-  $('#deliveryBarcodeInput').value = '';
-  $('#deliveryBarcodeInput').focus();
 }
 
 // Process delivery of a specific package
@@ -768,8 +726,6 @@ async function processPackageDelivery(item, packageInfo, barcode) {
   
   if (currentDelivered >= requiredPackages) {
     showFeedback(`⚠️ ${packageInfo.package_name || packageInfo.package_number} - Bu paket zaten teslim edildi!`, 'warning');
-    $('#deliveryBarcodeInput').value = '';
-    $('#deliveryBarcodeInput').focus();
     return;
   }
   
@@ -814,8 +770,6 @@ async function processSimpleItemDelivery(item, barcode) {
   
   if (currentDelivered >= item.quantity) {
     showFeedback(`⚠️ ${item.sku} - Tüm miktarlar zaten teslim edildi!`, 'warning');
-    $('#deliveryBarcodeInput').value = '';
-    $('#deliveryBarcodeInput').focus();
     return;
   }
   
@@ -966,7 +920,6 @@ function showPackageSelection(item, barcode) {
   window.closePackageModal = () => {
     document.body.removeChild(window.currentPackageModal);
     document.head.removeChild(window.currentPackageStyle);
-    $('#deliveryBarcodeInput').focus();
   };
 }
 
@@ -1261,7 +1214,6 @@ function showItemPackages(itemId) {
   window.closePackageDetailModal = () => {
     document.body.removeChild(window.currentPackageDetailModal);
     document.head.removeChild(window.currentPackageDetailStyle);
-    $('#deliveryBarcodeInput').focus();
   };
 }
 

@@ -132,6 +132,69 @@
         display: none;
       }
     }
+    
+    /* Recent Requests Styles */
+    .recent-requests {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-top: 16px;
+    }
+    
+    .request-item {
+      background: var(--hover, rgba(0,0,0,0.05));
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      padding: 16px;
+      transition: all 0.2s ease;
+    }
+    
+    .request-item:hover {
+      background: var(--hover, rgba(0,0,0,0.1));
+      border-color: var(--accent, #3b82f6);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .request-item.error {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: #ef4444;
+      color: #ef4444;
+    }
+    
+    .request-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+    
+    .request-id {
+      color: var(--accent, #3b82f6);
+      font-size: 14px;
+    }
+    
+    .request-priority {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    
+    .priority-high { background: #fef2f2; color: #dc2626; }
+    .priority-medium { background: #fef3c7; color: #d97706; }
+    .priority-low { background: #f0f9ff; color: #0ea5e9; }
+    
+    .request-details {
+      font-size: 13px;
+      color: var(--muted, #6b7280);
+      line-height: 1.4;
+    }
+    
+    .request-details strong {
+      color: var(--fg, #1f2937);
+    }
   </style>
 </head>
 <body>
@@ -415,6 +478,15 @@
     </form>
   </section>
 
+  <!-- Son Talepler -->
+  <section class="card">
+    <h2>📋 Son Talepler</h2>
+    <div id="recentRequests" class="recent-requests">
+      <div class="request-item">
+        <em>Son talepler yükleniyor...</em>
+      </div>
+    </div>
+  </section>
 
 </main>
 
@@ -496,8 +568,10 @@ async function searchProductBySku(sku) {
             throw new Error('Ürünler yüklenemedi');
         }
         
-        // Find product by SKU
-        const foundProduct = data.find(product => product.sku === sku);
+        // Find product by SKU (case-insensitive)
+        const foundProduct = data.find(product => 
+            product.sku && product.sku.toUpperCase() === sku.toUpperCase()
+        );
         
         if (!foundProduct) {
             throw new Error('Bu SKU ile ürün bulunamadı');
@@ -539,7 +613,17 @@ async function searchProductBySku(sku) {
             productSkuInput.style.borderColor = '';
         }, 3000);
         
-        alert(`SKU bulunamadı: ${error.message}`);
+        // Show user-friendly error message
+        let userMessage = error.message;
+        if (error.message.includes('fetch')) {
+            userMessage = 'Sunucu bağlantı hatası. İnternet bağlantınızı kontrol edin.';
+        } else if (error.message.includes('Ürünler yüklenemedi')) {
+            userMessage = 'Ürün veritabanına erişilemiyor. Lütfen sistem yöneticisine başvurun.';
+        } else if (error.message.includes('Bu SKU ile ürün bulunamadı')) {
+            userMessage = `SKU "${sku}" bulunamadı. SKU'yu kontrol edin ve tekrar deneyin.`;
+        }
+        
+        alert(`SKU Arama Hatası: ${userMessage}`);
     }
 }
 
@@ -687,7 +771,24 @@ async function handleFormSubmit(e) {
             loadRecentRequests();
             
         } else {
-            throw new Error('Servis talebi oluşturulamadı');
+            // Enhanced error handling
+            let errorMessage = 'Servis talebi oluşturulamadı';
+            try {
+                const errorData = await response.json();
+                if (errorData.error) {
+                    errorMessage = `Hata: ${errorData.error}`;
+                }
+            } catch (parseError) {
+                console.error('Error parsing response:', parseError);
+                if (response.status === 500) {
+                    errorMessage = 'Sunucu hatası. Lütfen daha sonra tekrar deneyin.';
+                } else if (response.status === 400) {
+                    errorMessage = 'Geçersiz veri. Lütfen tüm alanları kontrol edin.';
+                } else {
+                    errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+                }
+            }
+            throw new Error(errorMessage);
         }
         
         // Restore button
@@ -742,11 +843,18 @@ async function loadRecentRequests() {
         
     } catch (error) {
         console.error('Son talepler yüklenemedi:', error);
-        recentRequests.innerHTML = '<div class="request-item error">Son talepler yüklenemedi</div>';
+        if (recentRequests) {
+            recentRequests.innerHTML = '<div class="request-item error">Son talepler yüklenemedi</div>';
+        }
     }
 }
 
 function displayRecentRequests(requests) {
+    if (!recentRequests) {
+        console.warn('recentRequests element bulunamadı');
+        return;
+    }
+    
     if (requests.length === 0) {
         recentRequests.innerHTML = '<div class="request-item"><em>Henüz servis talebi bulunmuyor...</em></div>';
         return;
@@ -798,6 +906,21 @@ function getStatusText(status) {
     };
     return texts[status] || status;
 }
+
+// Mobile navigation toggle
+document.getElementById('mobileNavToggle').addEventListener('click', () => {
+  const menu = document.getElementById('mobileNavMenu');
+  menu.classList.toggle('show');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('mobileNav');
+  const menu = document.getElementById('mobileNavMenu');
+  if (!nav.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
 
 </script>
 

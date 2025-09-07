@@ -11,6 +11,7 @@
     
     <!-- Core Scripts -->
     <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/smart-barcode-scanner.js"></script>
     <style>
     /* Dropdown Navigation Styles */
     .main-nav {
@@ -452,7 +453,6 @@ const operationHistory = document.getElementById('operationHistory');
 
 // Sayfa yüklendiğinde
 document.addEventListener('DOMContentLoaded', async () => {
-  barcodeInput.focus();
   loadOperationHistory();
   await loadAllShelves();
   
@@ -469,29 +469,47 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Event Listeners Kurulumu
 function setupEventListeners() {
-  // Ana ürün barkodu input
-  barcodeInput.addEventListener('input', async (e) => {
-    const barcode = e.target.value.trim();
-    if (barcode && workflowStep === 1) {
-      // Paket barkodunu kontrol et
-      try {
-        const response = await fetch(`/api/packages/barcode/${encodeURIComponent(barcode)}`);
-        if (response.ok) {
-          await processProductBarcode(barcode);
-          e.target.value = '';
+  // Initialize smart barcode scanner for product input
+  window.SmartBarcodeScanner.initializeInput('#barcodeInput', {
+    placeholder: 'Ürün barkodunu okutun...',
+    enableManualMode: true,
+    preventMobileKeyboard: true,
+    debug: true,
+    onScan: async (barcode, isFromScanner, input) => {
+      if (workflowStep === 1) {
+        // Paket barkodunu kontrol et
+        try {
+          const response = await fetch(`/api/packages/barcode/${encodeURIComponent(barcode)}`);
+          if (response.ok) {
+            await processProductBarcode(barcode);
+          } else {
+            throw new Error('Ürün bulunamadı');
+          }
+        } catch (error) {
+          throw new Error(`Ürün barkodu işlenemedi: ${error.message}`);
         }
-      } catch (error) {
-        // Eşleşme yoksa devam et
       }
+    },
+    onError: (error, barcode, input) => {
+      console.error('Ürün barkodu hatası:', error.message);
     }
   });
   
-  // Raf barkodu input
-  shelfBarcodeInput.addEventListener('input', async (e) => {
-    const barcode = e.target.value.trim();
-    if (barcode && workflowStep === 2 && targetShelf && barcode === targetShelf.shelf_code) {
-      await processShelfConfirmation(barcode);
-      e.target.value = '';
+  // Initialize smart barcode scanner for shelf input
+  window.SmartBarcodeScanner.initializeInput('#shelfBarcodeInput', {
+    placeholder: 'Raf barkodunu okutun...',
+    enableManualMode: true,
+    preventMobileKeyboard: true,
+    debug: true,
+    onScan: async (barcode, isFromScanner, input) => {
+      if (workflowStep === 2 && targetShelf && barcode === targetShelf.shelf_code) {
+        await processShelfConfirmation(barcode);
+      } else {
+        throw new Error('Raf kodu eşleşmiyor veya hedef raf seçilmedi');
+      }
+    },
+    onError: (error, barcode, input) => {
+      console.error('Raf barkodu hatası:', error.message);
     }
   });
   
@@ -941,6 +959,21 @@ document.addEventListener('click', (e) => {
   }
 });
 
+// Mobile navigation toggle
+document.getElementById('mobileNavToggle').addEventListener('click', () => {
+  const menu = document.getElementById('mobileNavMenu');
+  menu.classList.toggle('show');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('mobileNav');
+  const menu = document.getElementById('mobileNavMenu');
+  if (!nav.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
+
 </script>
 
 <style>
@@ -986,12 +1019,24 @@ document.addEventListener('click', (e) => {
   text-align: center;
   font-family: 'Courier New', monospace;
   margin-bottom: 10px;
+  background: #000;
+  color: #00ff00;
 }
 
 .barcode-input:focus {
   border-color: #4caf50;
   outline: none;
   box-shadow: 0 0 10px rgba(76, 175, 80, 0.3);
+}
+
+.barcode-input::selection {
+  background: #ffffff;
+  color: #000000;
+}
+
+.barcode-input::-moz-selection {
+  background: #ffffff;
+  color: #000000;
 }
 
 .scanner-status {

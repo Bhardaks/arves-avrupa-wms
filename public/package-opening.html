@@ -202,6 +202,40 @@
       justify-content: space-between;
       margin-bottom: 0.5rem;
     }
+
+    /* Barcode Input Styling - Fixed contrast issue */
+    #packageBarcodeInput, 
+    #shelfLocationInput {
+      background: #000 !important;
+      color: #00ff00 !important;
+      border: 2px solid #333 !important;
+      font-family: 'Courier New', monospace !important;
+      text-align: center !important;
+      font-weight: bold !important;
+    }
+
+    #packageBarcodeInput::selection,
+    #packageBarcodeInput::-moz-selection,
+    #shelfLocationInput::selection,
+    #shelfLocationInput::-moz-selection {
+      background: #ffffff !important;
+      color: #000000 !important;
+    }
+
+    #packageBarcodeInput:focus,
+    #shelfLocationInput:focus {
+      background: #000 !important;
+      color: #00ff00 !important;
+      border-color: #00ff00 !important;
+      outline: none !important;
+      box-shadow: 0 0 8px rgba(0, 255, 0, 0.3) !important;
+    }
+
+    #packageBarcodeInput:disabled {
+      background: #222 !important;
+      color: #666 !important;
+      border-color: #444 !important;
+    }
     
     .package-info-row:last-child {
       margin-bottom: 0;
@@ -620,7 +654,7 @@
       <div class="scan-area" id="packageScanArea">
         <div class="scan-icon">📱</div>
         <p>Paket barkodunu tarayın</p>
-        <input type="text" id="packageBarcodeInput" placeholder="Paket barkodu tarayın..." oninput="handlePackageScanAuto()" autocomplete="off" disabled>
+        <input type="text" id="packageBarcodeInput" placeholder="Paket barkodu tarayın..." autocomplete="off" disabled>
       </div>
       
       <!-- Package Info -->
@@ -684,8 +718,7 @@
           <h4>Raf Konumu Doğrulama</h4>
           <div class="form-group">
             <label for="shelfLocationInput">Paketin Bulunduğu Raf Kodu</label>
-            <input type="text" id="shelfLocationInput" placeholder="Raf kodunu tarayın" 
-                   oninput="handleShelfScanAuto()" required>
+            <input type="text" id="shelfLocationInput" placeholder="Raf kodunu tarayın" required>
             <button type="button" onclick="verifyShelfLocation()" class="btn btn-secondary">Doğrula</button>
           </div>
           <div id="shelfVerificationResult" class="verification-result" style="display: none;"></div>
@@ -707,7 +740,7 @@
   </div>
 </main>
 
-
+<script src="/assets/js/smart-barcode-scanner.js"></script>
 <script>
 let selectedServiceRequest = null;
 let scannedPackage = null;
@@ -718,6 +751,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log('📂 Paket Açma İstasyonu yüklendi');
     loadAvailableRequests();
     loadRecentOpenings();
+    
+    // Initialize barcode scanners
+    initializeBarcodeInputs();
     
     // Check for preselected request from dashboard
     const preselectedId = localStorage.getItem('preselected_request_id');
@@ -731,6 +767,45 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Initialize barcode scanners
+function initializeBarcodeInputs() {
+    // Package barcode scanner
+    window.SmartBarcodeScanner.initializeInput('#packageBarcodeInput', {
+        placeholder: 'Paket barkodu tarayın...',
+        enableManualMode: true,
+        preventMobileKeyboard: true,
+        debug: false,
+        onScan: async (barcode, isFromScanner, input) => {
+            await handlePackageScan(barcode);
+        },
+        onError: (error, barcode, input) => {
+            console.error('Paket barkod hatası:', error.message);
+        }
+    });
+
+    // Shelf location scanner
+    window.SmartBarcodeScanner.initializeInput('#shelfLocationInput', {
+        placeholder: 'Raf kodunu tarayın...',
+        enableManualMode: true,
+        preventMobileKeyboard: true,
+        debug: false,
+        onScan: async (barcode, isFromScanner, input) => {
+            await handleShelfScan(barcode);
+        },
+        onError: (error, barcode, input) => {
+            console.error('Raf barkod hatası:', error.message);
+        }
+    });
+}
+
+// Handle shelf barcode scan
+async function handleShelfScan(barcode) {
+    // Update input field
+    document.getElementById('shelfLocationInput').value = barcode;
+    
+    // Call the existing verification function
+    await verifyShelfLocation();
+}
 
 // Load service requests ready for package opening
 async function loadAvailableRequests() {
@@ -896,9 +971,11 @@ function handlePackageScanAuto() {
 }
 
 // Handle package barcode scan
-async function handlePackageScan() {
-    const rawBarcode = document.getElementById('packageBarcodeInput').value;
-    const barcode = rawBarcode.replace(/[\n\r]/g, '').trim(); // Clean barcode scanner newlines
+async function handlePackageScan(barcode) {
+    if (!barcode) {
+        const rawBarcode = document.getElementById('packageBarcodeInput').value;
+        barcode = rawBarcode.replace(/[\n\r]/g, '').trim(); // Clean barcode scanner newlines
+    }
     
     // Update input with clean barcode
     document.getElementById('packageBarcodeInput').value = barcode;

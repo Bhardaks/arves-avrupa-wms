@@ -6,6 +6,7 @@
   <title>Stok Yönetimi</title>
   <link rel="stylesheet" href="/assets/css/styles.css" />
   <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <script src="/assets/js/smart-barcode-scanner.js"></script>
   <style>
     /* Dropdown Navigation Styles */
     .main-nav {
@@ -487,7 +488,7 @@
       <!-- Scanner section - sadece normal modda göster -->
       <div class="adjustment-scanner" id="adjustmentScannerSection">
         <label>Ürün Barkodu:</label>
-        <input type="text" id="adjustmentScanner" placeholder="Ürün veya paket barkodunu okutun..." autocomplete="off" />
+        <input type="text" id="adjustmentScanner" placeholder="Ürün veya paket barkodunu okutun..." />
         <div class="scanner-help">
           <small>📱 Barkod okutun veya manuel girin</small>
         </div>
@@ -588,7 +589,7 @@
       
       <div class="form-group">
         <label>Ürün/Paket Barkodu:</label>
-        <input type="text" id="movementScanner" placeholder="Barkod okutun..." autocomplete="off" />
+        <input type="text" id="movementScanner" placeholder="Barkod okutun..." />
       </div>
       
       <div class="movement-product" id="movementProduct" style="display: none;">
@@ -1337,27 +1338,88 @@ document.getElementById('stockReportBtn').addEventListener('click', () => {
   window.open('/api/stock/report?type=full', '_blank');
 });
 
-// Stok ayarlama modalı
-document.getElementById('adjustmentScanner').addEventListener('input', async (e) => {
-  const barcode = e.target.value.trim();
-  
-  if (barcode.length >= 6) {
-    try {
-      const response = await fetch(`/api/stock/search?barcode=${barcode}`);
-      const result = await response.json();
-      
-      if (result.success && result.item) {
-        currentAdjustmentItem = result.item;
-        showAdjustmentDetails(result.item);
-        e.target.value = '';
-      } else {
-        showError('Ürün bulunamadı!');
-      }
-    } catch (error) {
-      showError('Ürün arama hatası!');
+// Stok ayarlama modalı - SmartBarcodeScanner ile
+let adjustmentScanner = null;
+
+function initializeAdjustmentScanner() {
+  adjustmentScanner = window.SmartBarcodeScanner.initializeInput(document.getElementById('adjustmentScanner'), {
+    placeholder: 'Ürün veya paket barkodunu okutun...',
+    preventMobileKeyboard: true,
+    enableManualMode: true,
+    minLength: 6,
+    maxLength: 50,
+    debug: false,
+    onScan: async (barcode, isFromScanner, input) => {
+      console.log(`📱 Stok ayarlama barkodu tarandı: ${barcode} (${isFromScanner ? 'Scanner' : 'Manuel'})`);
+      await processAdjustmentBarcode(barcode);
+    },
+    onError: (error, barcode, input) => {
+      console.error('Stok ayarlama barkod hatası:', error);
+      showError(`Barkod hatası: ${error.message}`);
     }
+  });
+}
+
+async function processAdjustmentBarcode(barcode) {
+  try {
+    const response = await fetch(`/api/stock/search?barcode=${barcode}`);
+    const result = await response.json();
+    
+    if (result.success && result.item) {
+      currentAdjustmentItem = result.item;
+      showAdjustmentDetails(result.item);
+    } else {
+      showError('Ürün bulunamadı!');
+    }
+  } catch (error) {
+    showError('Ürün arama hatası!');
   }
-});
+}
+
+// Stok hareketi modalı - SmartBarcodeScanner ile
+let movementScanner = null;
+
+function initializeMovementScanner() {
+  movementScanner = window.SmartBarcodeScanner.initializeInput(document.getElementById('movementScanner'), {
+    placeholder: 'Barkod okutun...',
+    preventMobileKeyboard: true,
+    enableManualMode: true,
+    minLength: 6,
+    maxLength: 50,
+    debug: false,
+    onScan: async (barcode, isFromScanner, input) => {
+      console.log(`📱 Stok hareketi barkodu tarandı: ${barcode} (${isFromScanner ? 'Scanner' : 'Manuel'})`);
+      await processMovementBarcode(barcode);
+    },
+    onError: (error, barcode, input) => {
+      console.error('Stok hareketi barkod hatası:', error);
+      showError(`Barkod hatası: ${error.message}`);
+    }
+  });
+}
+
+async function processMovementBarcode(barcode) {
+  try {
+    const response = await fetch(`/api/stock/search?barcode=${barcode}`);
+    const result = await response.json();
+    
+    if (result.success && result.item) {
+      currentMovementItem = result.item;
+      showMovementDetails(result.item);
+    } else {
+      showError('Ürün bulunamadı!');
+    }
+  } catch (error) {
+    showError('Ürün arama hatası!');
+  }
+}
+
+function showMovementDetails(item) {
+  document.getElementById('movementProductName').textContent = `${item.product_name} (${item.sku})`;
+  document.getElementById('movementProductLocation').textContent = `Lokasyon: ${item.location_code}`;
+  document.getElementById('movementProductStock').textContent = `Mevcut Stok: ${item.current_stock || 0}`;
+  document.getElementById('movementProduct').style.display = 'block';
+}
 
 function showAdjustmentDetails(item) {
   document.getElementById('adjustmentProduct').textContent = `${item.product_name} (${item.sku})`;
@@ -1847,15 +1909,15 @@ function renderShelfMovements(movements) {
 // Package stock adjustment
 window.adjustPackageStock = (barcode) => {
   document.getElementById('stockAdjustmentModal').style.display = 'flex';
-  document.getElementById('adjustmentScanner').value = barcode;
-  document.getElementById('adjustmentScanner').dispatchEvent(new Event('input'));
+  // SmartBarcodeScanner ile işlemek için direkt fonksiyonu çağır
+  processAdjustmentBarcode(barcode);
 };
 
 // Global fonksiyonlar
 window.adjustStock = (sku, locationCode) => {
   document.getElementById('stockAdjustmentModal').style.display = 'flex';
-  document.getElementById('adjustmentScanner').value = sku;
-  document.getElementById('adjustmentScanner').dispatchEvent(new Event('input'));
+  // SmartBarcodeScanner ile işlemek için direkt fonksiyonu çağır
+  processAdjustmentBarcode(sku);
 };
 
 window.viewMovements = (sku) => {
@@ -2137,6 +2199,21 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log('- confirmAdjustment button:', document.getElementById('confirmAdjustment'));
   console.log('- stockAdjustmentModal:', document.getElementById('stockAdjustmentModal'));
   console.log('- adjustmentDetails:', document.getElementById('adjustmentDetails'));
+  
+  // Initialize SmartBarcodeScanner systems
+  console.log('📱 Initializing SmartBarcodeScanner systems...');
+  
+  // Initialize adjustment scanner
+  if (document.getElementById('adjustmentScanner')) {
+    initializeAdjustmentScanner();
+    console.log('✅ Adjustment scanner initialized');
+  }
+  
+  // Initialize movement scanner  
+  if (document.getElementById('movementScanner')) {
+    initializeMovementScanner();
+    console.log('✅ Movement scanner initialized');
+  }
 });
 </script>
 

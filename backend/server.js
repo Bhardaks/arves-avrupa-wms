@@ -4656,7 +4656,7 @@ app.get('/api/service-requests', async (req, res) => {
       FROM service_requests sr
       LEFT JOIN products p ON sr.product_id = p.id
       LEFT JOIN product_packages pp ON sr.package_id = pp.id
-      ORDER BY sr.created_date DESC
+      ORDER BY sr.created_at DESC
     `);
     
     res.json({ success: true, requests });
@@ -6754,6 +6754,7 @@ app.listen(PORT, '0.0.0.0', async () => {
         package_barcode TEXT,
         issue_description TEXT NOT NULL,
         required_part TEXT NOT NULL,
+        required_quantity INTEGER DEFAULT 1,
         priority TEXT NOT NULL CHECK(priority IN ('urgent', 'high', 'normal', 'low')),
         status TEXT NOT NULL DEFAULT 'new' CHECK(status IN ('new', 'processing', 'waiting_parts', 'completed', 'cancelled')),
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -6763,6 +6764,21 @@ app.listen(PORT, '0.0.0.0', async () => {
     console.log('✅ Service requests table created');
   } catch (e) {
     console.log('ℹ️ Service requests table already exists');
+  }
+
+  // Database migration: Add required_quantity column if missing
+  try {
+    // Check if required_quantity column exists
+    const tableInfo = await all(`PRAGMA table_info(service_requests)`);
+    const hasRequiredQuantity = tableInfo.some(column => column.name === 'required_quantity');
+    
+    if (!hasRequiredQuantity) {
+      console.log('🔄 Adding required_quantity column to service_requests table...');
+      await run(`ALTER TABLE service_requests ADD COLUMN required_quantity INTEGER DEFAULT 1`);
+      console.log('✅ Database migration: required_quantity column added');
+    }
+  } catch (migrationError) {
+    console.error('⚠️ Database migration error:', migrationError.message);
   }
 
   // Create inventory counts tables
@@ -9308,12 +9324,185 @@ app.post('/api/sync/external-orders', requireAuth, async (req, res) => {
         const orderNumber = externalOrder.siparisNo;
         
         // Check if order already exists
-        const existingOrder = await get(`SELECT id FROM orders WHERE order_number = ?`, [orderNumber]);
+        const existingOrder = await get(`SELECT id, status, fulfillment_status FROM orders WHERE order_number = ?`, [orderNumber]);
         if (existingOrder) {
-          // Update existing order's customer_name to use cariIsmi
-          const newCustomerName = externalOrder.cariIsmi || externalOrder.cariKodu;
-          await run(`UPDATE orders SET customer_name = ? WHERE order_number = ?`, [newCustomerName, orderNumber]);
-          console.log(`🔄 Order ${orderNumber} customer updated: ${newCustomerName}`);
+          // Only update if order is not completed/fulfilled to avoid data corruption
+          if (existingOrder.status !== 'completed' && existingOrder.fulfillment_status !== 'FULFILLED') {
+            const newCustomerName = externalOrder.cariIsmi || externalOrder.cariKodu;
+            const newTotalAmount = externalOrder.toplamTutar;
+            const newOrderDate = externalOrder.siparisTarihi;
+            
+            await run(`
+              UPDATE orders 
+              SET customer_name = ?, 
+                  customer_code = ?, 
+                  total_amount = ?, 
+                  order_date = ?,
+                  external_data = ?
+              WHERE order_number = ?
+            `, [
+              newCustomerName,
+              externalOrder.cariKodu,
+              newTotalAmount,
+              newOrderDate,
+              JSON.stringify(externalOrder),
+              orderNumber
+            ]);
+            
+            // Smart order items sync - even with active picks, sync items safely
+            const existingItems = await all(`SELECT * FROM order_items WHERE order_id = ?`, [existingOrder.id]);
+            const activePicks = await get(`SELECT COUNT(*) as count FROM picks WHERE order_id = ? AND status != 'completed'`, [existingOrder.id]);
+            
+            if (existingItems.length === 0) {
+              // No existing items - safe to add new items
+              if (externalOrder.satirlar && Array.isArray(externalOrder.satirlar)) {
+                for (const item of externalOrder.satirlar) {
+                  // Find or create product (case-insensitive search)
+                  let product = await get(`SELECT id, sku, name FROM products WHERE UPPER(sku) = UPPER(?)`, [item.stokKodu]);
+                  if (!product) {
+                    // Create basic product entry
+                    const productResult = await run(`
+                      INSERT INTO products (sku, name, created_at)
+                      VALUES (?, ?, ?)
+                    `, [item.stokKodu.toUpperCase(), item.stokKodu, new Date().toISOString()]);
+                    product = { id: productResult.lastID, sku: item.stokKodu.toUpperCase(), name: item.stokKodu };
+                  }
+                  
+                  // Insert order item
+                  await run(`
+                    INSERT INTO order_items (
+                      order_id, product_id, sku, product_name, quantity,
+                      unit_price, line_number, warehouse_code, description,
+                      unit_type, vat_rate, picked_qty
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  `, [
+                    existingOrder.id,
+                    product.id,
+                    product.sku, // Use the actual product SKU from database
+                    product.name, // Use the actual product name from database
+                    item.miktar,
+                    item.birimFiyat,
+                    item.sira,
+                    item.depoKodu || null,
+                    item.aciklama || null,
+                    item.birim || null,
+                    item.kdvOrani || null,
+                    0 // picked_qty starts at 0
+                  ]);
+                }
+                console.log(`🔄 Order ${orderNumber} items added: ${externalOrder.satirlar.length} items`);
+              }
+            } else if (activePicks.count === 0) {
+              // No active picks - safe to completely replace items
+              if (externalOrder.satirlar && Array.isArray(externalOrder.satirlar)) {
+                // Clear existing items (no active picks)
+                await run(`DELETE FROM order_items WHERE order_id = ?`, [existingOrder.id]);
+                
+                // Insert updated items
+                for (const item of externalOrder.satirlar) {
+                  // Find or create product (case-insensitive search)
+                  let product = await get(`SELECT id, sku, name FROM products WHERE UPPER(sku) = UPPER(?)`, [item.stokKodu]);
+                  if (!product) {
+                    // Create basic product entry
+                    const productResult = await run(`
+                      INSERT INTO products (sku, name, created_at)
+                      VALUES (?, ?, ?)
+                    `, [item.stokKodu.toUpperCase(), item.stokKodu, new Date().toISOString()]);
+                    product = { id: productResult.lastID, sku: item.stokKodu.toUpperCase(), name: item.stokKodu };
+                  }
+                  
+                  // Insert order item
+                  await run(`
+                    INSERT INTO order_items (
+                      order_id, product_id, sku, product_name, quantity,
+                      unit_price, line_number, warehouse_code, description,
+                      unit_type, vat_rate, picked_qty
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  `, [
+                    existingOrder.id,
+                    product.id,
+                    product.sku, // Use the actual product SKU from database
+                    product.name, // Use the actual product name from database
+                    item.miktar,
+                    item.birimFiyat,
+                    item.sira,
+                    item.depoKodu || null,
+                    item.aciklama || null,
+                    item.birim || null,
+                    item.kdvOrani || null,
+                    0 // picked_qty starts at 0
+                  ]);
+                }
+                console.log(`🔄 Order ${orderNumber} items updated: ${externalOrder.satirlar.length} items`);
+              } else {
+                console.log(`📋 Order ${orderNumber} items preserved (no external items data)`);
+              }
+            } else {
+              // Has active picks - smart sync: remove only unpicked items that are no longer in external order
+              if (externalOrder.satirlar && Array.isArray(externalOrder.satirlar)) {
+                // Get external SKUs for comparison
+                const externalSkus = externalOrder.satirlar.map(item => item.stokKodu.toUpperCase());
+                
+                // Remove items that are not in external order and have picked_qty = 0
+                const removedItems = await run(`
+                  DELETE FROM order_items 
+                  WHERE order_id = ? 
+                  AND UPPER(sku) NOT IN (${externalSkus.map(() => '?').join(',')})
+                  AND picked_qty = 0
+                `, [existingOrder.id, ...externalSkus]);
+                
+                // Add new items that don't exist in current order
+                for (const item of externalOrder.satirlar) {
+                  const existingItem = await get(`
+                    SELECT id FROM order_items 
+                    WHERE order_id = ? AND UPPER(sku) = UPPER(?)
+                  `, [existingOrder.id, item.stokKodu]);
+                  
+                  if (!existingItem) {
+                    // Find or create product
+                    let product = await get(`SELECT id, sku, name FROM products WHERE UPPER(sku) = UPPER(?)`, [item.stokKodu]);
+                    if (!product) {
+                      const productResult = await run(`
+                        INSERT INTO products (sku, name, created_at)
+                        VALUES (?, ?, ?)
+                      `, [item.stokKodu.toUpperCase(), item.stokKodu, new Date().toISOString()]);
+                      product = { id: productResult.lastID, sku: item.stokKodu.toUpperCase(), name: item.stokKodu };
+                    }
+                    
+                    // Insert new order item
+                    await run(`
+                      INSERT INTO order_items (
+                        order_id, product_id, sku, product_name, quantity,
+                        unit_price, line_number, warehouse_code, description,
+                        unit_type, vat_rate, picked_qty
+                      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    `, [
+                      existingOrder.id,
+                      product.id,
+                      product.sku,
+                      product.name,
+                      item.miktar,
+                      item.birimFiyat,
+                      item.sira,
+                      item.depoKodu || null,
+                      item.aciklama || null,
+                      item.birim || null,
+                      item.kdvOrani || null,
+                      0
+                    ]);
+                  }
+                }
+                
+                console.log(`🔄 Order ${orderNumber} items smart sync: ${removedItems.changes} removed, preserving picked items (active picks: ${activePicks.count})`);
+              } else {
+                console.log(`📋 Order ${orderNumber} items preserved (has active picks and no external items data)`);
+              }
+            }
+            
+            console.log(`🔄 Order ${orderNumber} updated: ${newCustomerName}, Amount: ${newTotalAmount}`);
+          } else {
+            console.log(`⚠️ Order ${orderNumber} is completed/fulfilled, skipping update`);
+          }
           skipped++;
           continue;
         }

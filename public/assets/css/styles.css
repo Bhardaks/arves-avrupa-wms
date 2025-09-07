@@ -1508,10 +1508,16 @@ tr:hover {
   border-radius: 16px;
   min-width: 280px;
   max-width: 320px;
+  max-height: 70vh;
+  overflow-y: auto;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4);
   display: none;
   z-index: 1000;
   padding: 16px 0;
+  
+  /* Smooth scrolling */
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
 }
 
 .mobile-nav-menu.show {

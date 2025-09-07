@@ -1955,6 +1955,21 @@ async function updateOrderWithDispatchNote(orderId, dispatchId) {
     throw error;
   }
 }
+
+// Mobile navigation toggle
+document.getElementById('mobileNavToggle').addEventListener('click', () => {
+  const menu = document.getElementById('mobileNavMenu');
+  menu.classList.toggle('show');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('mobileNav');
+  const menu = document.getElementById('mobileNavMenu');
+  if (!nav.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
 </script>
 </body>
 </html>

@@ -7,6 +7,7 @@
   <title>Toplama</title>
   <link rel="stylesheet" href="/assets/css/styles.css" />
   <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <script src="/assets/js/smart-barcode-scanner.js"></script>
   <style>
     /* Mobile optimizations for pick page */
     @media (max-width: 768px) {
@@ -612,85 +613,34 @@ function resetLocationVerification() {
   $('#last').style.fontWeight = '';
 }
 
+// Initialize SmartBarcodeScanner for pick scanning
+let pickScanner = null;
+
+function initializePickScanner() {
+  pickScanner = window.SmartBarcodeScanner.initializeInput($('#manual'), {
+    placeholder: locationVerificationEnabled 
+      ? '1. Ürün Barkodunu Okutun (Lokasyon Teyit Zorunlu)'
+      : 'Ürün Barkodunu Okutun',
+    preventMobileKeyboard: true,
+    enableManualMode: true,
+    minLength: 6,
+    maxLength: 50,
+    debug: false,
+    onScan: async (barcode, isFromScanner, input) => {
+      console.log(`📱 Pick barkodu tarandı: ${barcode} (${isFromScanner ? 'Scanner' : 'Manuel'})`);
+      await submitBarcode(barcode);
+    },
+    onError: (error, barcode, input) => {
+      console.error('Pick barkod hatası:', error);
+      alert(`❌ Barkod hatası: ${error.message}`);
+    }
+  });
+}
+
 $('#enter').addEventListener('click', ()=>{
   const v = $('#manual').value.trim();
   if(v) {
     submitBarcode(v);
-    $('#manual').value='';
-  }
-});
-
-// Enter tuşu ile de tarama yapabilme
-$('#manual').addEventListener('keypress', (e)=>{
-  if(e.key === 'Enter') {
-    const v = $('#manual').value.trim();
-    if(v) {
-      submitBarcode(v);
-      $('#manual').value='';
-    }
-  }
-});
-
-
-
-// Auto-submit for barcode scanners (Zebra terminals) - improved logic
-let autoSubmitTimer = null;
-let isManualTyping = false;
-let lastKeystrokeTime = Date.now();
-
-$('#manual').addEventListener('input', (e) => {
-  const value = e.target.value.trim();
-  const currentTime = Date.now();
-  
-  // Detect if user is typing manually (slow keystrokes) vs barcode scanner (fast burst)
-  const timeSinceLastKeystroke = currentTime - lastKeystrokeTime;
-  if (timeSinceLastKeystroke > 50) { // More than 50ms between keystrokes = manual typing
-    isManualTyping = true;
-  } else if (timeSinceLastKeystroke < 20) { // Less than 20ms = likely scanner
-    isManualTyping = false;
-  }
-  
-  lastKeystrokeTime = currentTime;
-  
-  // Clear existing timer
-  if (autoSubmitTimer) {
-    clearTimeout(autoSubmitTimer);
-  }
-  
-  // Auto-submit logic based on input type
-  if (value.length >= 6) {
-    let delay;
-    if (isManualTyping) {
-      delay = 2000; // 2 seconds for manual typing - gives time to complete
-    } else {
-      delay = 300; // 300ms for barcode scanners
-    }
-    
-    autoSubmitTimer = setTimeout(() => {
-      console.log(isManualTyping ? '👤 Manual input detected' : '🤖 Barcode scanner detected');
-      console.log('🔍 Submitting barcode:', value);
-      if ($('#manual').value.trim() === value) { // Make sure it hasn't changed
-        submitBarcode(value);
-        $('#manual').value = '';
-      }
-    }, delay);
-  }
-});
-
-// Enter key support for manual input
-$('#manual').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    const value = e.target.value.trim();
-    if (value.length >= 6) {
-      // Clear timer and submit immediately
-      if (autoSubmitTimer) {
-        clearTimeout(autoSubmitTimer);
-      }
-      console.log('⌨️ Enter key pressed - submitting:', value);
-      submitBarcode(value);
-      e.target.value = '';
-    }
   }
 });
 
@@ -1156,9 +1106,16 @@ function toggleLocationVerification() {
   
   // Input placeholder'ını da güncelle
   if (!isWaitingForLocationScan) {
-    $('#manual').placeholder = locationVerificationEnabled 
+    const newPlaceholder = locationVerificationEnabled 
       ? '1. Ürün Barkodunu Okutun (Lokasyon Teyit Zorunlu)'
       : 'Ürün Barkodunu Okutun';
+    
+    $('#manual').placeholder = newPlaceholder;
+    
+    // SmartBarcodeScanner placeholder'ını da güncelle
+    if (pickScanner && pickScanner.config) {
+      pickScanner.config.placeholder = newPlaceholder;
+    }
   }
   
 }
@@ -1169,37 +1126,30 @@ $('#locationVerifyStatus').addEventListener('click', toggleLocationVerification)
 
 await loadPick();
 
-// Manuel input modu
-$('#manual').focus();
-console.log('📱 Started in manual input mode.');
+// Initialize SmartBarcodeScanner after loading pick data
+initializePickScanner();
 
-// Zebra Terminal Optimizasyonları
-setTimeout(() => {
-  const manualInput = $('#manual');
-  
-  if (manualInput) {
-    manualInput.focus();
-    manualInput.click();
-    
-    setInterval(() => {
-      if (document.activeElement !== manualInput) {
-        manualInput.focus();
-      }
-    }, 500);
-    
-    document.addEventListener('click', (e) => {
-      if (e.target !== manualInput) {
-        setTimeout(() => manualInput.focus(), 50);
-      }
-    });
-    
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        setTimeout(() => manualInput.focus(), 100);
-      }
-    });
+// Focus on scanner input
+console.log('📱 SmartBarcodeScanner initialized for pick mode.');
+
+// Keep focus on scanner input
+setInterval(() => {
+  if (pickScanner && document.activeElement !== $('#manual')) {
+    pickScanner.focus();
   }
-}, 1000);
+}, 500);
+
+document.addEventListener('click', (e) => {
+  if (pickScanner && e.target !== $('#manual')) {
+    setTimeout(() => pickScanner.focus(), 50);
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (pickScanner && !document.hidden) {
+    setTimeout(() => pickScanner.focus(), 100);
+  }
+});
 
 // Visual feedback for successful scan (outside setTimeout)
 function showScanFeedback(success) {

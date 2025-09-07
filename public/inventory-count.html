@@ -1022,13 +1022,23 @@ document.addEventListener('input', (e) => {
   }
 });
 
-// Barkod scanner with debouncing
+// Barkod scanner with smart terminal vs manual detection
 let barcodeTimeout;
+let inputStartTime = 0;
+let lastInputTime = 0;
+
 document.getElementById('countScanner').addEventListener('input', async (e) => {
-  let barcode = e.target.value.trim();
+  const currentTime = Date.now();
+  const barcode = e.target.value.trim();
+  
+  // Track input timing for scanner detection
+  if (barcode.length === 1) {
+    inputStartTime = currentTime;
+  }
+  lastInputTime = currentTime;
   
   // Eğer barkod HTML/JavaScript içeriyor ise temizle (corruption durumu)
-  if (barcode.includes('Global input event') || barcode.includes('inventory-count.html') || barcode.length > 50) {
+  if (barcode.includes('Global input event') || barcode.includes('inventory-count.html') || barcode.length > 100) {
     console.log('Corrupted input detected, clearing field');
     e.target.value = '';
     return;
@@ -1043,18 +1053,24 @@ document.getElementById('countScanner').addEventListener('input', async (e) => {
     return; // Empty input, do nothing
   }
   
-  // For automatic barcode scanners (>= 6 characters), process immediately
-  if (barcode.length >= 6) {
-    // Clear timeout and process immediately for scanner input
-    clearTimeout(barcodeTimeout);
+  // Detect if input is from scanner (fast) or manual typing (slow)
+  const inputDuration = currentTime - inputStartTime;
+  const isFromScanner = barcode.length >= 8 && inputDuration < 500; // 8+ chars in under 500ms = scanner
+  
+  if (isFromScanner) {
+    // Scanner input - process immediately
+    console.log('🤖 Terminal scanner detected - processing immediately');
     await processBarcodeInput(e.target, barcode);
   } else {
-    // For manual input (< 6 characters), wait 1.5 seconds before processing
+    // Manual input - wait for user to finish typing
+    const timeout = barcode.length >= 8 ? 300 : 800; // Shorter wait for longer barcodes
+    console.log('👤 Manual input detected - waiting', timeout, 'ms');
+    
     barcodeTimeout = setTimeout(async () => {
       if (e.target.value.trim() === barcode) { // Only process if value hasn't changed
         await processBarcodeInput(e.target, barcode);
       }
-    }, 1500);
+    }, timeout);
   }
 });
 
@@ -1344,17 +1360,14 @@ document.getElementById('locationScanner').addEventListener('input', async (e) =
   }
   
   if (item) {
-    // For automatic barcode scanners (>= 4 characters), process immediately
-    if (locationBarcode.length >= 4) {
-      processLocationInput(e.target, locationBarcode, item);
-    } else {
-      // For manual input (< 4 characters), wait 1 second before processing
-      locationTimeout = setTimeout(() => {
-        if (e.target.value.trim() === locationBarcode) { // Only process if value hasn't changed
-          processLocationInput(e.target, locationBarcode, item);
-        }
-      }, 1000);
-    }
+    // Smart timeout based on input length and likely source
+    const timeout = locationBarcode.length >= 6 ? 300 : 800; // Shorter wait for longer codes
+    
+    locationTimeout = setTimeout(() => {
+      if (e.target.value.trim() === locationBarcode) { // Only process if value hasn't changed
+        processLocationInput(e.target, locationBarcode, item);
+      }
+    }, timeout);
   }
 });
 
@@ -1366,10 +1379,8 @@ function processLocationInput(inputElement, locationBarcode, item) {
     document.getElementById('locationStatus').innerHTML = '<span style="color: var(--success);">✅ Lokasyon doğru - Miktar girişi yapabilirsiniz</span>';
     window.locationVerified = true;
     
-    // Sadece 4+ karakter ise (barkod okuyucu) otomatik temizle
-    if (locationBarcode.length >= 4) {
-      inputElement.value = '';
-    }
+    // Otomatik temizle (barkod okuyucu için)
+    inputElement.value = '';
     
     // Miktar girişine geç
     setTimeout(() => {
@@ -1755,17 +1766,14 @@ document.getElementById('locationModalScanner').addEventListener('input', (e) =>
     return;
   }
   
-  // For automatic barcode scanners (>= 4 characters), process immediately
-  if (shelfBarcode.length >= 4) {
-    processModalLocationInput(e.target, shelfBarcode);
-  } else {
-    // For manual input (< 4 characters), wait 1 second before processing
-    modalLocationTimeout = setTimeout(() => {
-      if (e.target.value.trim() === shelfBarcode) { // Only process if value hasn't changed
-        processModalLocationInput(e.target, shelfBarcode);
-      }
-    }, 1000);
-  }
+  // Smart timeout based on input length and likely source  
+  const timeout = shelfBarcode.length >= 6 ? 300 : 800; // Shorter wait for longer codes
+  
+  modalLocationTimeout = setTimeout(() => {
+    if (e.target.value.trim() === shelfBarcode) { // Only process if value hasn't changed
+      processModalLocationInput(e.target, shelfBarcode);
+    }
+  }, timeout);
 });
 
 // Process modal location input
@@ -1788,17 +1796,10 @@ function processModalLocationInput(inputElement, shelfBarcode) {
       showCurrentScan(matchedItem, true); // true = modaldan geldi, lokasyon kontrolü atla
     }, 500);
   } else {
-    // Yanlış raf - manuel girişte daha nazik yaklaşım
-    if (shelfBarcode.length >= 4) {
-      const validLocations = pendingLocationItems.map(item => item.location_code).join(', ');
-      document.getElementById('locationScannerStatus').innerHTML = 
-        '<span style="color: var(--danger);">❌ Geçersiz raf! Geçerli raflar: ' + validLocations + '</span>';
-    } else {
-      // Kısa girişlerde sadece yönlendirici mesaj göster
-      const validLocations = pendingLocationItems.map(item => item.location_code).join(', ');
-      document.getElementById('locationScannerStatus').innerHTML = 
-        '<span style="color: var(--warning);">🔍 Geçerli raflar: ' + validLocations + '</span>';
-    }
+    // Yanlış raf - hata mesajı göster
+    const validLocations = pendingLocationItems.map(item => item.location_code).join(', ');
+    document.getElementById('locationScannerStatus').innerHTML = 
+      '<span style="color: var(--danger);">❌ Geçersiz raf! Geçerli raflar: ' + validLocations + '</span>';
   }
 }
 
