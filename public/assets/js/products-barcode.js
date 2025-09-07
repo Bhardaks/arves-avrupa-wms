@@ -34,6 +34,22 @@
             fontSize: '12pt',
             priceSize: '16pt'
         },
+        package_zebra_zd220: {
+            name: 'Zebra ZD220 Etiketi (19.8x9.8cm)',
+            width: '19.8cm',
+            height: '9.8cm',
+            showName: true,
+            showPrice: false,
+            showSku: true,
+            showBarcode: true,
+            showDimensions: true,
+            showContent: true,
+            showLogo: true,
+            fontSize: '11pt',
+            headerSize: '14pt',
+            dpi: 300,
+            zebraOptimized: true
+        },
         package_15x10: {
             name: 'Paket Etiketi (15x10cm)',
             width: '15cm',
@@ -258,20 +274,21 @@
             if (window.JsBarcode) {
                 console.log('✅ JsBarcode available, generating...');
                 
-                // Simplified approach first
-                canvas.width = 300;
-                canvas.height = 100;
-                canvas.style.width = '40mm';
-                canvas.style.height = '15mm';
+                // High-quality Zebra ZD220 optimized settings
+                canvas.width = 600;
+                canvas.height = 200;
+                canvas.style.width = '50mm';
+                canvas.style.height = '20mm';
+                canvas.style.imageRendering = 'crisp-edges';
                 
                 window.JsBarcode(canvas, cleanText, {
                     format: 'CODE128',
-                    width: 2,
-                    height: 50,
+                    width: 4,
+                    height: 80,
                     displayValue: true,
-                    fontSize: 12,
-                    textMargin: 2,
-                    margin: 5,
+                    fontSize: 16,
+                    textMargin: 4,
+                    margin: 8,
                     background: '#ffffff',
                     lineColor: '#000000'
                 });
@@ -289,7 +306,7 @@
 
 
 
-    // Print simple barcodes for selected products
+    // Print simple barcodes for selected products - Shelf-admin quality
     window.printBarcodes = function() {
         if (!window.selectedProducts || window.selectedProducts.length === 0) {
             showMessage('Yazdırmak için ürün seçiniz', 'error');
@@ -308,84 +325,99 @@
                 <!DOCTYPE html>
                 <html>
                 <head>
-                    <title>Basit Barkod Etiketleri</title>
+                    <title>Ürün Barkod Etiketleri - Zebra ZD220</title>
+                    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                     <style>
                         @page { margin: 0.5cm; }
                         body { 
                             font-family: Arial, sans-serif; 
                             margin: 0; 
-                            padding: 0;
+                            padding: 20px;
                             background: white;
                         }
-                        .barcode-label { 
-                            border: 1px solid #ccc; 
-                            margin: 2mm; 
-                            padding: 2mm; 
+                        .label { 
+                            width: 10cm; 
+                            height: 6cm; 
+                            border: 2px solid #000; 
+                            padding: 20px; 
+                            margin: 10px; 
                             display: inline-block; 
                             text-align: center;
+                            background: white;
                             page-break-inside: avoid;
-                            width: 60mm;
-                            height: 30mm;
+                            vertical-align: top;
                         }
-                        .label-name { font-weight: bold; margin-bottom: 2px; font-size: 10pt; }
-                        .label-sku { font-size: 8pt; color: #666; margin-top: 2px; }
-                        .barcode-container { margin: 2px 0; }
-                        .barcode-fallback { 
-                            font-family: monospace; 
-                            font-size: 8pt; 
-                            border: 1px solid #ccc; 
-                            padding: 2px; 
+                        .header { 
+                            font-size: 14px; 
+                            font-weight: bold; 
+                            margin-bottom: 8px; 
+                            color: #333;
+                        }
+                        .product-name { 
+                            font-size: 16px; 
+                            font-weight: bold; 
+                            margin: 8px 0; 
+                            word-wrap: break-word;
+                            max-height: 40px;
+                            overflow: hidden;
+                        }
+                        .sku-info { 
+                            font-size: 11px; 
+                            color: #666; 
+                            margin: 3px 0;
+                        }
+                        #barcode { 
+                            margin: 10px 0; 
+                        }
+                        @media print {
+                            body { margin: 0; }
+                            .label { 
+                                margin: 5px; 
+                                border: 1px solid #000; 
+                            }
                         }
                     </style>
-                    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
                 </head>
                 <body>
-                    ${products.map(product => `
-                        <div class="barcode-label">
-                            <div class="label-name">${product.name.substring(0, 25)}</div>
-                            <div class="barcode-container" data-barcode="${product.main_barcode || product.sku}">
-                                <div class="barcode-fallback">||||| ||| ||</div>
+                    ${products.map((product, index) => {
+                        const code = product.main_barcode || product.sku || 'NOBARCODE';
+                        const name = product.name || 'Ürün Adı Yok';
+                        const sku = product.sku || 'SKU YOK';
+                        const date = new Date().toLocaleDateString('tr-TR');
+                        
+                        return `
+                            <div class="label">
+                                <div class="header">WMS ÜRÜN ETİKETİ</div>
+                                <div class="product-name">${name.substring(0, 30)}</div>
+                                <svg id="barcode${index}"></svg>
+                                <div class="sku-info">SKU: ${sku}</div>
+                                <div class="sku-info">${date}</div>
                             </div>
-                            <div class="label-sku">SKU: ${product.sku}</div>
-                        </div>
-                    `).join('')}
+                        `;
+                    }).join('')}
                     <script>
-                        window.onload = function() {
-                            setTimeout(() => {
-                                document.querySelectorAll('.barcode-container').forEach(container => {
-                                    const text = container.dataset.barcode;
-                                    if (text && window.JsBarcode) {
-                                        const canvas = document.createElement('canvas');
-                                        container.innerHTML = '';
-                                        container.appendChild(canvas);
-                                        
-                                        canvas.width = 200;
-                                        canvas.height = 60;
-                                        canvas.style.width = '30mm';
-                                        canvas.style.height = '10mm';
-                                        
-                                        try {
-                                            const cleanText = String(text).replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
-                                            JsBarcode(canvas, cleanText, {
-                                                format: 'CODE128',
-                                                width: 2,
-                                                height: 40,
-                                                displayValue: false,
-                                                margin: 5,
-                                                background: '#ffffff',
-                                                lineColor: '#000000'
-                                            });
-                                        } catch(e) {
-                                            container.innerHTML = '<div class="barcode-fallback">Barkod: ' + text + '</div>';
-                                        }
-                                    }
-                                });
-                                
-                                setTimeout(() => {
-                                    window.print();
-                                }, 1000);
-                            }, 500);
-                        };
+                        setTimeout(function() {
+                            try {
+                                ${products.map((product, index) => {
+                                    const code = product.main_barcode || product.sku || 'NOBARCODE';
+                                    return `
+                                        JsBarcode("#barcode${index}", "${code}", {
+                                            format: "CODE128",
+                                            width: 3,
+                                            height: 50,
+                                            displayValue: false,
+                                            margin: 0,
+                                            background: "#ffffff",
+                                            lineColor: "#000000"
+                                        });
+                                    `;
+                                }).join('')}
+                                setTimeout(function() { window.print(); }, 1000);
+                            } catch(e) {
+                                console.error("Barkod oluşturma hatası:", e);
+                                window.print();
+                            }
+                        }, 500);
                     </script>
                 </body>
                 </html>
@@ -394,7 +426,7 @@
             printWindow.document.write(printHTML);
             printWindow.document.close();
 
-            showMessage(`${products.length} ürün için basit barkod yazdırılıyor`, 'success');
+            showMessage(`${products.length} ürün için kaliteli barkod yazdırılıyor`, 'success');
 
         } catch (error) {
             console.error('❌ Print error:', error);
@@ -576,50 +608,46 @@
             console.log('🎯 Preview window loaded');
             
             setTimeout(() => {
-                const barcodeContainers = previewWindow.document.querySelectorAll('.barcode-container[data-barcode]');
+                const barcodeContainers = previewWindow.document.querySelectorAll('.barcode-container[data-barcode], .vertical-barcode-container[data-barcode]');
                 console.log('🔍 Preview window - Found', barcodeContainers.length, 'barcode containers');
                 
                 barcodeContainers.forEach((container, index) => {
                     const barcodeText = container.getAttribute('data-barcode');
                     console.log('📊 Preview: Rendering barcode', index, ':', barcodeText);
                     
-                    if (barcodeText && barcodeText.trim() !== '' && window.JsBarcode) {
+                    if (barcodeText && barcodeText.trim() !== '' && previewWindow.JsBarcode) {
                         try {
                             const cleanText = String(barcodeText).replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
                             
-                            // Create high-quality canvas in main window for preview
-                            const tempCanvas = document.createElement('canvas');
-                            tempCanvas.width = 500;  // Higher resolution for preview
-                            tempCanvas.height = 150;
+                            // Use shelf-admin method for preview too - KÜÇÜK BARKOD
+                            const uniqueId = 'preview-barcode-' + index;
                             
-                            window.JsBarcode(tempCanvas, cleanText, {
-                                format: 'CODE128',
-                                width: 4,    // Higher width for better quality
-                                height: 80,  // Higher height
-                                displayValue: true,
-                                fontSize: 16,
-                                textMargin: 4,
-                                margin: 10,
-                                background: '#ffffff',
-                                lineColor: '#000000'
-                            });
+                            // Different sizes for vertical vs regular barcode containers
+                            const isVertical = container.classList.contains('vertical-barcode-container');
+                            const svgStyle = isVertical ? 'width:40mm;height:12mm;' : 'width:50mm;height:18mm;';
                             
-                            // Clone to preview window with crisp rendering
-                            const previewCanvas = previewWindow.document.createElement('canvas');
-                            previewCanvas.width = tempCanvas.width;
-                            previewCanvas.height = tempCanvas.height;
-                            previewCanvas.style.width = '60mm';  // Larger display for preview
-                            previewCanvas.style.height = '22mm';
-                            previewCanvas.style.imageRendering = 'crisp-edges';
-                            previewCanvas.style.imageRendering = 'pixelated';
-                            previewCanvas.style.border = 'none';
+                            container.innerHTML = `<svg id="${uniqueId}" style="${svgStyle}"></svg>`;
                             
-                            const ctx = previewCanvas.getContext('2d');
-                            ctx.imageSmoothingEnabled = false; // Prevent blurring
-                            ctx.drawImage(tempCanvas, 0, 0);
+                            // Use preview window's JsBarcode with ID selector - KÜÇÜK BARKOD
+                            const barcodeSettings = isVertical ? {
+                                format: "CODE128",
+                                width: 5,     // Ultra kalın çizgiler
+                                height: 85,   // Ultra yükseklik dev alan için
+                                displayValue: false,
+                                margin: 4,    // Ultra büyük margin
+                                background: "#ffffff",
+                                lineColor: "#000000"
+                            } : {
+                                format: "CODE128",
+                                width: 3,     // Küçültüldü
+                                height: 60,   // Küçültüldü
+                                displayValue: false,
+                                margin: 5,
+                                background: "#ffffff",
+                                lineColor: "#000000"
+                            };
                             
-                            container.innerHTML = '';
-                            container.appendChild(previewCanvas);
+                            previewWindow.JsBarcode("#" + uniqueId, cleanText, barcodeSettings);
                             
                             console.log('✅ Preview barcode rendered successfully:', cleanText);
                             
@@ -671,75 +699,102 @@
 
     // Generate custom package label HTML with specified format
     function generateCustomPackageLabelHTML(pkg, template = null) {
-        const currentDate = new Date().toLocaleDateString('tr-TR');
-        const serialNo = `PKG-${Date.now().toString().slice(-6)}`;
-        
         // Get template dimensions
         const templateInfo = template || BARCODE_TEMPLATES.package_15x10;
         
         return `
             <div class="custom-package-label" data-template="${template ? template.name : 'default'}">
-                <!-- Header with Logo and Product Name -->
-                <div class="label-header">
-                    <div class="logo-section">
-                        <img src="/assets/images/black-logo.png" alt="Logo" class="company-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
-                        <div class="logo-placeholder" style="display:none;">LOGO</div>
-                    </div>
-                    <div class="product-name-section">
-                        <div class="main-product-name">${formatBilingualText(pkg.product_name, pkg.product_name_en, 'ANA ÜRÜN ADI')}</div>
-                        <div class="package-subtitle">${formatBilingualText(pkg.package_name, pkg.package_name_en, 'PAKET ADI')}</div>
-                    </div>
-                </div>
-                
-                <!-- Main Content Area -->
-                <div class="label-body">
-                    <!-- Left Section (Critical + Barcode) -->
-                    <div class="left-section">
-                        <div class="package-info-group">
-                            <div class="info-label">PAKET NO / PACKAGE NO</div>
-                            <div class="info-value">${escapeHtml(pkg.package_number || pkg.name || 'N/A')}</div>
+                <!-- Ana Template (Sola dayalı) -->
+                <div class="main-template-area">
+                    <!-- Header with Logo and Product Name -->
+                    <div class="label-header">
+                        <div class="logo-section">
+                            <img src="/assets/images/black-logo.png" alt="Logo" class="company-logo" onerror="this.style.display='none'; this.nextElementSibling.style.display='block';">
+                            <div class="logo-placeholder" style="display:none;">LOGO</div>
                         </div>
-                        
-                        <div class="package-info-group">
-                            <div class="info-label">RENK / COLOR</div>
-                            <div class="info-value">${formatBilingualText(pkg.color, pkg.color_en, 'N/A')}</div>
-                        </div>
-                        
-                        <div class="barcode-section">
-                            <div class="barcode-container" data-barcode="${pkg.barcode || pkg.package_number || '530501354649'}">
-                                <div class="barcode-placeholder">||||| ||| |||| |||||</div>
-                            </div>
-                            <div class="barcode-number">${pkg.barcode || pkg.package_number || '530501354649'}</div>
+                        <div class="product-name-section">
+                            <div class="main-product-name">${formatBilingualText(pkg.product_name, pkg.product_name_en, 'ANA ÜRÜN ADI')}</div>
+                            <div class="package-subtitle">${formatBilingualText(pkg.package_name, pkg.package_name_en, 'PAKET ADI')}</div>
                         </div>
                     </div>
                     
-                    <!-- Right Section (Dimensions) -->
-                    <div class="right-section">
-                        <div class="dimensions-group">
-                            <div class="dimensions-title">PAKET ÖLÇÜLERİ / PACKAGE DIMENSIONS</div>
-                            <div class="dimension-item">- Yükseklik / Height: ${pkg.height || pkg.dimensions_height || '..'} cm</div>
-                            <div class="dimension-item">- Genişlik / Width: ${pkg.width || pkg.dimensions_width || '..'} cm</div>
-                            <div class="dimension-item">- Uzunluk / Length: ${pkg.length || pkg.dimensions_length || '..'} cm</div>
-                            <div class="dimension-summary">
-                                <span>- M³: ${pkg.volume_m3 || pkg.volume || pkg.cubic_volume || pkg.m3 || '..'}</span>
-                                <span class="weight-info">- KG: ${pkg.weight_kg || pkg.weight || pkg.total_weight || pkg.kg || '..'}</span>
+                    <!-- Main Content Area -->
+                    <div class="label-body">
+                        <!-- Left Section (Critical + Barcode) -->
+                        <div class="left-section">
+                            <div class="package-info-group">
+                                <div class="info-label">PAKET NO / PACKAGE NO</div>
+                                <div class="info-value">${escapeHtml(pkg.package_number || pkg.name || 'N/A')}</div>
+                                <div class="info-label" style="margin-top: 2mm;">RENK / COLOR</div>
+                                <div class="info-value">${formatBilingualText(pkg.color, pkg.color_en, 'N/A')}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- Right Section (Dimensions) -->
+                        <div class="right-section">
+                            <div class="dimensions-group">
+                                <div class="dimensions-title">PAKET ÖLÇÜLERİ / PACKAGE DIMENSIONS</div>
+                                <div class="dimension-item">- Yükseklik / Height: ${pkg.height || pkg.dimensions_height || '..'} cm</div>
+                                <div class="dimension-item">- Genişlik / Width: ${pkg.width || pkg.dimensions_width || '..'} cm</div>
+                                <div class="dimension-item">- Uzunluk / Length: ${pkg.length || pkg.dimensions_length || '..'} cm</div>
+                                <div class="dimension-summary">
+                                    <span>- M³: ${pkg.volume_m3 || pkg.volume || pkg.cubic_volume || pkg.m3 || '..'}</span>
+                                    <span class="weight-info">- KG: ${pkg.weight_kg || pkg.weight || pkg.total_weight || pkg.kg || '..'}</span>
+                                </div>
+                                
+                                <!-- BARKOD ALANI - M³/KG ALTINDA -->
+                                <div class="barcode-section-inline">
+                                    <div class="barcode-container" data-barcode="${pkg.barcode || pkg.package_number || '530501354649'}">
+                                        <div class="barcode-placeholder">||||| ||| ||||</div>
+                                    </div>
+                                    <div class="barcode-number">${pkg.barcode || pkg.package_number || '530501354649'}</div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-                
-                <!-- Package Content Section -->
-                <div class="content-section">
-                    <div class="content-title">PAKET İÇERİĞİ / PACKAGE CONTENT</div>
-                    <div class="content-list">
-                        ${generatePackageContentList(pkg)}
+                    
+                    <!-- Package Content Section -->
+                    <div class="content-section">
+                        <div class="content-title">PAKET İÇERİĞİ / PACKAGE CONTENT</div>
+                        <div class="content-list">
+                            ${generatePackageContentList(pkg)}
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div class="label-footer">
+                        <span></span>
+                        <span></span>
                     </div>
                 </div>
                 
-                <!-- Footer -->
-                <div class="label-footer">
-                    <span>${currentDate}</span>
-                    <span>• Seri no: ${serialNo}</span>
+                <!-- Sağ 4cm Dikey Alan -->
+                <div class="right-vertical-sidebar">
+                    <!-- Ana Ürün Adı (Türkçe/İngilizce) -->
+                    <div class="vertical-main-product-name">${formatBilingualText(pkg.product_name, pkg.product_name_en, 'ANA ÜRÜN ADI')}</div>
+                    
+                    <!-- Paket Adı -->
+                    <div class="vertical-package-name">${escapeHtml(pkg.name || pkg.package_name || 'N/A')}</div>
+                    
+                    <!-- Paket Numarası -->
+                    <div class="vertical-package-number-section">
+                        <div class="vertical-package-number-label">PAKET NO</div>
+                        <div class="vertical-package-number-value">${escapeHtml(pkg.package_number || pkg.name || 'N/A')}</div>
+                    </div>
+                    
+                    <!-- Renk/Color Alanı -->
+                    <div class="vertical-color-section">
+                        <div class="vertical-color-label">RENK / COLOR</div>
+                        <div class="vertical-color-value">${formatBilingualText(pkg.color, pkg.color_en, 'N/A')}</div>
+                    </div>
+                    
+                    <!-- Sağ Alandaki Dikey Barkod (90 derece döndürülmüş) -->
+                    <div class="vertical-barcode-section">
+                        <div class="vertical-barcode-container" data-barcode="${pkg.barcode || pkg.package_number || '530501354649'}">
+                            <div class="barcode-placeholder">||||| ||| ||||</div>
+                        </div>
+                        <div class="vertical-barcode-number">${pkg.barcode || pkg.package_number || '530501354649'}</div>
+                    </div>
                 </div>
             </div>
         `;
@@ -752,18 +807,24 @@
         
         if (!contentsTR && !contentsEN) {
             return `
-                <div class="content-item">• ……………………………………………………………………………………</div>
-                <div class="content-item">• ……………………………………………………………………………………</div>
-                <div class="content-item">• ……………………………………………………………………………………</div>
-                <div class="content-item">• ……………………………………………………………………………………</div>
-                <div class="content-item">• ……………………………………………………………………………………</div>
-                <div class="content-item">• ……………………………………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
+                <div class="content-item">• ………………………………………………………</div>
             `;
         }
         
         const itemsTR = contentsTR ? contentsTR.split('\n').filter(item => item.trim()) : [];
         const itemsEN = contentsEN ? contentsEN.split('\n').filter(item => item.trim()) : [];
-        const maxItems = Math.max(6, Math.max(itemsTR.length, itemsEN.length));
+        const maxItems = Math.max(12, Math.max(itemsTR.length, itemsEN.length));
         let html = '';
         
         for (let i = 0; i < maxItems; i++) {
@@ -777,7 +838,7 @@
             } else if (itemEN) {
                 html += `<div class="content-item">• ${escapeHtml(itemEN)}</div>`;
             } else {
-                html += `<div class="content-item">• ……………………………………………………………………………………</div>`;
+                html += `<div class="content-item">• ………………………………………………………</div>`;
             }
         }
         
@@ -793,16 +854,25 @@
             }
             
             .custom-package-label {
-                width: 150mm;
-                height: 100mm;
-                background: white;
-                border: none;  /* Dış kenarlık kaldırıldı */
+                width: 195mm;
+                height: 95mm;
+                background: transparent;
+                border: none;
                 font-family: Arial, sans-serif;
                 font-size: 9pt;
-                line-height: 1.2;
+                line-height: 1.1;
                 margin: 20px auto;
                 display: flex;
                 flex-direction: column;
+            }
+            
+            /* Zebra ZD220 template - BÜYÜK YAZILAR */
+            .custom-package-label[data-template*="zebra"] {
+                width: 195mm;
+                height: 94mm;
+                font-size: 13pt;
+                font-weight: 600;
+                line-height: 1.0;
             }
             
             /* 10x15cm template */
@@ -811,15 +881,176 @@
                 height: 150mm;
             }
             
+            .custom-package-label {
+                display: flex;
+                position: relative;
+            }
+            
+            .right-vertical-sidebar {
+                position: absolute;
+                right: 0;
+                top: 0;
+                bottom: 0;
+                width: 20mm;
+                border-left: 2px solid #000;
+                padding: 2mm 0.5mm;
+                display: flex;
+                flex-direction: row;
+                justify-content: space-evenly;
+                align-items: stretch;
+                text-align: center;
+                background: transparent;
+                z-index: 2;
+            }
+            
+            .vertical-main-product-name {
+                font-size: 6pt;
+                font-weight: bold;
+                color: #000;
+                word-wrap: break-word;
+                line-height: 1.0;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                transform: rotate(180deg);
+                width: 5mm;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                flex-shrink: 0;
+                padding: 1.5mm 0;
+            }
+            
+            .vertical-package-name {
+                font-size: 6pt;
+                font-weight: bold;
+                color: #000;
+                word-wrap: break-word;
+                line-height: 1.0;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                transform: rotate(180deg);
+                width: 3mm;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: flex-start;
+                flex-shrink: 0;
+                padding: 1mm 0;
+            }
+            
+            .vertical-package-number-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 5mm;
+                height: 100%;
+                justify-content: flex-start;
+                flex-shrink: 0;
+                padding: 1.5mm 0;
+                transform: rotate(180deg);
+            }
+            
+            .vertical-package-number-label {
+                font-size: 5pt;
+                font-weight: bold;
+                color: #000;
+                margin-bottom: 3mm;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                white-space: nowrap;
+            }
+            
+            .vertical-package-number-value {
+                font-size: 7pt;
+                font-weight: bold;
+                color: #000;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+            }
+            
+            .vertical-color-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 5mm;
+                height: 100%;
+                justify-content: flex-start;
+                flex-shrink: 0;
+                padding: 1.5mm 0;
+                transform: rotate(180deg);
+            }
+            
+            .vertical-color-label {
+                font-size: 5pt;
+                font-weight: bold;
+                color: #000;
+                margin-bottom: 3mm;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+                white-space: nowrap;
+            }
+            
+            .vertical-color-value {
+                font-size: 6pt;
+                font-weight: normal;
+                color: #000;
+                writing-mode: vertical-rl;
+                text-orientation: mixed;
+            }
+            
+            .vertical-barcode-section {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                width: 12mm;
+                height: 40mm;
+                justify-content: center;
+                flex-shrink: 0;
+                padding: 0.1mm;
+                transform: rotate(270deg);
+                position: absolute;
+                top: 2mm;
+                right: 2mm;
+                z-index: 10;
+            }
+            
+            .vertical-barcode-container {
+                width: 40mm;
+                height: 12mm;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: transparent;
+                margin: 0;
+            }
+            
+            .vertical-barcode-number {
+                font-size: 8pt;
+                font-family: monospace;
+                text-align: center;
+                color: #000;
+                margin-top: 2mm;
+                font-weight: bold;
+            }
+            
+            .main-template-area {
+                width: calc(100% - 22mm);
+                margin-right: 22mm;
+                display: flex;
+                flex-direction: column;
+                padding-right: 2mm;
+            }
+
             .label-header {
                 display: flex;
                 border-bottom: 2px solid #000;
-                height: 15mm;
+                height: 12mm;
             }
             
             .logo-section {
-                width: 30mm;
-                padding: 2mm;
+                width: 25mm;
+                padding: 1mm;
                 border-right: 1px solid #000;
                 display: flex;
                 align-items: center;
@@ -827,19 +1058,19 @@
             }
             
             .company-logo {
-                max-width: 25mm;
+                max-width: 23mm;
                 max-height: 10mm;
                 object-fit: contain;
             }
             
             .logo-placeholder {
-                font-size: 8pt;
+                font-size: 10pt;
                 color: #666;
             }
             
             .product-name-section {
                 flex: 1;
-                padding: 2mm;
+                padding: 1mm;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
@@ -849,8 +1080,8 @@
             
             .main-product-name {
                 font-weight: bold;
-                font-size: 11pt;
-                margin-bottom: 1mm;
+                font-size: 15pt;
+                margin-bottom: 0.6mm;
                 color: #000;
                 word-wrap: break-word;
                 word-break: break-word;
@@ -859,27 +1090,37 @@
             
             .package-subtitle {
                 font-weight: normal;
-                font-size: 9pt;
-                margin-bottom: 1mm;
+                font-size: 10pt;
+                margin-bottom: 1.2mm;
                 color: #666;
                 word-wrap: break-word;
                 word-break: break-word;
-                line-height: 1.1;
+                line-height: 1.2;
             }
             
             .label-body {
                 display: flex;
                 flex: 1;
-                border-bottom: 2px solid #000;
+                margin-bottom: 7mm;
             }
             
             .left-section {
                 width: 50mm;
-                border-right: 2px solid #000;
                 padding: 2mm;
                 display: flex;
                 flex-direction: column;
                 justify-content: space-between;
+                position: relative;
+            }
+            
+            .left-section::after {
+                content: '';
+                position: absolute;
+                right: 0;
+                top: 0;
+                height: calc(100% - 5mm);
+                width: 2px;
+                background: #000;
             }
             
             .right-section {
@@ -899,7 +1140,7 @@
             
             
             .info-value {
-                font-size: 8pt;
+                font-size: 12pt;  /* BÜYÜK YAZILAR */
                 font-weight: bold;
             }
             
@@ -908,21 +1149,30 @@
                 margin-top: auto;
             }
             
+            /* BARKOD ALANI - M³/KG ALTINDA İNLINE */
+            .barcode-section-inline {
+                margin-top: 1mm;
+                text-align: left;
+                padding-top: 0mm;
+            }
+            
             .barcode-container {
-                margin: 2mm 0;
+                margin: 1mm 0 0 0;
                 min-height: 18mm;
-                max-width: 45mm;
+                max-width: 50mm;
+                width: 50mm;
+                height: 18mm;
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: white;
-                border: none;  /* Barcode kenarlığı kaldırıldı */
+                background: transparent;
+                border: none;
                 padding: 1mm;
             }
             
             .barcode-placeholder {
                 font-family: monospace;
-                font-size: 8pt;
+                font-size: 12pt;  /* BÜYÜK YAZILAR */
                 letter-spacing: 1px;
                 font-weight: bold;
                 color: #999;
@@ -932,7 +1182,10 @@
             .barcode-number {
                 font-size: 7pt;
                 font-family: monospace;
-                margin-top: 1mm;
+                margin-top: -2mm;
+                text-align: left;
+                margin-left: 1mm;
+                width: 50mm;
             }
             
             .dimensions-group {
@@ -962,48 +1215,110 @@
             }
             
             .content-section {
-                flex: 1;
-                padding: 3mm;
-                border-bottom: 2px solid #000;
+                height: 32mm;
+                padding: 2.5mm 2mm 1.5mm 2mm;
+                border-top: 2px solid #000;
                 margin: 0 2mm;
+                margin-top: -4mm;
+                overflow: hidden;
             }
             
             .content-title {
-                font-size: 8pt;
+                font-size: 10pt;
                 font-weight: bold;
-                margin-bottom: 2mm;
+                margin-bottom: 0.3mm;
             }
             
             .content-list {
-                display: flex;
-                flex-direction: column;
-                gap: 1mm;
-                padding: 2mm;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                grid-template-rows: repeat(6, 1fr);
+                grid-auto-flow: column;
+                gap: 0.6mm 2.5mm;
+                padding: 1.5mm;
                 border: 1px solid #ccc;
-                border-radius: 2mm;
+                border-radius: 0.5mm;
+                height: 26mm;
+                overflow: hidden;
+                font-size: 8pt;
+                line-height: 1.2;
             }
             
             .content-item {
-                font-size: 6pt;
-                line-height: 1.1;
+                font-size: 7pt;
+                line-height: 1.2;
+                margin-bottom: 0.3mm;
+                word-wrap: break-word;
+                overflow-wrap: break-word;
             }
             
             .label-footer {
-                padding: 1mm 2mm;
-                font-size: 6pt;
+                padding: 0.5mm 2mm;
+                font-size: 5pt;
                 color: #666;
                 display: flex;
                 justify-content: space-between;
+                border-top: 1px solid #000;
+                margin: 0 2mm;
+                margin-top: 1mm;
+                height: 3mm;
+                align-items: center;
             }
             
             @media print {
                 .preview-container {
                     padding: 0;
-                    background: white;
+                    background: transparent !important;
                 }
                 .custom-package-label {
                     margin: 0;
                     page-break-inside: avoid;
+                    -webkit-print-color-adjust: exact;
+                    color-adjust: exact;
+                    background: transparent !important;
+                }
+                
+                /* Metinleri koyu ve net yapmak için */
+                .main-product-name, .package-subtitle, .info-label, .info-value, 
+                .dimensions-title, .dimension-item, .content-title, .content-item,
+                .barcode-number, .label-footer, .vertical-main-product-name, .vertical-package-name,
+                .vertical-package-number-label, .vertical-package-number-value,
+                .vertical-color-label, .vertical-color-value, .vertical-barcode-number {
+                    color: #000000 !important;
+                    -webkit-print-color-adjust: exact;
+                    color-adjust: exact;
+                    font-weight: bold !important;
+                }
+                
+                /* Border'ları koyu yapmak için */
+                .label-header, .left-section::after, .content-section, .label-footer, .right-vertical-sidebar {
+                    border-color: #000000 !important;
+                }
+                
+                /* Zebra ZD220 300 DPI print settings */
+                @media print and (min-resolution: 300dpi) {
+                    .custom-package-label[data-template*="zebra"] {
+                        width: 19.8cm;
+                        height: 9.8cm;
+                        font-size: 12pt;
+                        line-height: 1.1;
+                    }
+                    
+                    .barcode-container canvas {
+                        image-rendering: -webkit-optimize-contrast;
+                        image-rendering: crisp-edges;
+                        image-rendering: pixelated;
+                    }
+                }
+                
+                /* Zebra ZD220 203 DPI print settings */
+                @media print and (min-resolution: 203dpi) and (max-resolution: 299dpi) {
+                    .custom-package-label[data-template*="zebra"] {
+                        width: 19.8cm;
+                        height: 9.8cm;
+                        font-size: 16pt;  /* BÜYÜK YAZILAR */
+                        line-height: 1.2;
+                    }
                 }
             }
         `;
@@ -1032,7 +1347,10 @@
                 </div>
                 <div class="modal-body">
                     <p>${packages.length} paket için etiket boyutu seçiniz:</p>
-                    <div class="template-size-options" style="display: flex; gap: 10px; justify-content: center; margin: 20px 0;">
+                    <div class="template-size-options" style="display: flex; gap: 10px; justify-content: center; margin: 20px 0; flex-wrap: wrap;">
+                        <button onclick="printWithTemplate('package_zebra_zd220', this.dataset.packages)" class="btn btn-success btn-large" data-packages='${JSON.stringify(packages)}' style="background: #2563eb;">
+                            🖨️ Zebra ZD220 (19.8x9.8cm) - Kaliteli
+                        </button>
                         <button onclick="printWithTemplate('package_15x10', this.dataset.packages)" class="btn btn-primary btn-large" data-packages='${JSON.stringify(packages)}'>
                             📄 15x10 cm (Yatay)
                         </button>
@@ -1092,7 +1410,7 @@
                 
                 setTimeout(() => {
                     // Find barcode containers in print window
-                    const barcodeContainers = printWindow.document.querySelectorAll('.barcode-container[data-barcode]');
+                    const barcodeContainers = printWindow.document.querySelectorAll('.barcode-container[data-barcode], .vertical-barcode-container[data-barcode]');
                     console.log('🔍 Print window - Found', barcodeContainers.length, 'barcode containers');
                     
                     // Render barcodes from main window context where JsBarcode is available
@@ -1102,44 +1420,41 @@
                         const barcodeText = container.getAttribute('data-barcode');
                         console.log('📊 Rendering barcode', index, ':', barcodeText);
                         
-                        if (barcodeText && barcodeText.trim() !== '' && window.JsBarcode) {
+                        if (barcodeText && barcodeText.trim() !== '' && printWindow.JsBarcode) {
                             const renderPromise = new Promise((resolve) => {
                                 try {
                                     const cleanText = String(barcodeText).replace(/[^A-Za-z0-9-]/g, '').toUpperCase();
                                     
-                                    // Create high-quality canvas in main window for print
-                                    const tempCanvas = document.createElement('canvas');
-                                    tempCanvas.width = 400;  // Higher resolution
-                                    tempCanvas.height = 120;
+                                    // Use exact shelf-admin method - SVG with ID selector - KÜÇÜK BARKOD
+                                    const uniqueId = 'barcode-pkg-' + index;
                                     
-                                    window.JsBarcode(tempCanvas, cleanText, {
-                                        format: 'CODE128',
-                                        width: 3,    // Higher width for print quality
-                                        height: 60,  // Higher height
-                                        displayValue: true,
-                                        fontSize: 14,
-                                        textMargin: 3,
-                                        margin: 8,
-                                        background: '#ffffff',
-                                        lineColor: '#000000'
-                                    });
+                                    // Different sizes for vertical vs regular barcode containers
+                                    const isVertical = container.classList.contains('vertical-barcode-container');
+                                    const svgStyle = isVertical ? 'width:40mm;height:12mm;' : 'width:50mm;height:18mm;';
                                     
-                                    // Clone the rendered canvas to print window with crisp rendering
-                                    const printCanvas = printWindow.document.createElement('canvas');
-                                    printCanvas.width = tempCanvas.width;
-                                    printCanvas.height = tempCanvas.height;
-                                    printCanvas.style.width = '40mm';
-                                    printCanvas.style.height = '15mm';
-                                    printCanvas.style.imageRendering = 'crisp-edges';
-                                    printCanvas.style.border = 'none';
+                                    container.innerHTML = `<svg id="${uniqueId}" style="${svgStyle}"></svg>`;
                                     
-                                    const ctx = printCanvas.getContext('2d');
-                                    ctx.imageSmoothingEnabled = false; // Prevent blurring for print
-                                    ctx.drawImage(tempCanvas, 0, 0);
+                                    // Use print window's JsBarcode with ID selector (shelf-admin method)
+                                    // Zebra ZD220 KÜÇÜK BARKOD optimized settings
+                                    const barcodeSettings = isVertical ? {
+                                        format: "CODE128",
+                                        width: 5,     // Ultra kalın çizgiler
+                                        height: 85,   // Ultra yükseklik dev alan için
+                                        displayValue: false,
+                                        margin: 4,    // Ultra büyük margin
+                                        background: "#ffffff",
+                                        lineColor: "#000000"
+                                    } : {
+                                        format: "CODE128",
+                                        width: 3,     // Küçültüldü
+                                        height: 60,   // Küçültüldü
+                                        displayValue: false,
+                                        margin: 5,    // Küçültüldü
+                                        background: "#ffffff",
+                                        lineColor: "#000000"
+                                    };
                                     
-                                    // Replace container content with rendered canvas
-                                    container.innerHTML = '';
-                                    container.appendChild(printCanvas);
+                                    printWindow.JsBarcode("#" + uniqueId, cleanText, barcodeSettings);
                                     
                                     console.log('✅ Barcode rendered successfully:', cleanText);
                                     resolve();
