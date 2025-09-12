@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+    <title>Ürün Yönetimi - WMS</title>
+    
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="/assets/css/styles.css">
+    <link rel="stylesheet" href="/assets/css/zebra-terminal.css">
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
+    <!-- Core Scripts -->
+    <script src="/assets/js/auth.js"></script>
+    <script src="/assets/js/products-core.js"></script>
+    <script src="/assets/js/products-packages.js"></script>
+    <script src="/assets/js/products-barcode.js"></script>
+    <script src="/assets/js/products-ui.js"></script>
+  <style>
+    /* Dropdown Navigation Styles */
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--header-bg, #1e293b);
+    }
+    
+    .nav-link.standalone {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      text-decoration: none;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .nav-link.standalone:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .nav-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      user-select: none;
+    }
+    
+    .nav-dropdown-trigger:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-trigger {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .dropdown-arrow {
+      margin-left: 8px;
+      font-size: 10px;
+      transition: transform 0.2s ease;
+    }
+    
+    .nav-dropdown:hover .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .nav-dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 220px;
+      background: var(--card, #ffffff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      z-index: 1000;
+      overflow: hidden;
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-content {
+      display: block;
+      animation: dropdownFadeIn 0.2s ease;
+    }
+    
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .nav-dropdown-link {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      text-decoration: none;
+      color: var(--fg, #374151);
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--border, #f3f4f6);
+    }
+    
+    .nav-dropdown-link:last-child {
+      border-bottom: none;
+    }
+    
+    .nav-dropdown-link:hover {
+      background: var(--hover, #f8fafc);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-icon {
+      margin-right: 10px;
+      font-size: 16px;
+    }
+    
+    .nav-text {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    /* Page actions moved below header */
+    .page-actions {
+      display: flex;
+      gap: 12px;
+      padding: 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      justify-content: flex-end;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .main-nav {
+        display: none;
+      }
+      
+      .page-actions {
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+    }
+  </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="loading-spinner"></div>
+        <div class="loading-text">Yükleniyor...</div>
+    </div>
+
+    <!-- Header -->
+    <header>
+      <div class="header-brand">
+        <h1>WMS Netsis Entegre</h1>
+        <span class="header-subtitle">Ürün Yönetimi</span>
+      </div>
+      <div class="header-user">
+        <div class="user-info" id="userInfo" style="display: none;">
+          <span class="user-name" id="userName"></span>
+          <span class="user-role" id="userRole"></span>
+          <button class="logout-btn" id="logoutBtn">Çıkış</button>
+        </div>
+      </div>
+      <nav class="main-nav">
+        <!-- Ana Sayfa linki -->
+        <a href="/index.html" class="nav-link standalone">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-text">Ana Sayfa</span>
+        </a>
+        
+        <!-- Ana Modüller Dropdown -->
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-trigger">
+            <span class="nav-icon">📊</span>
+            <span class="nav-text">Ana Modüller</span>
+            <span class="dropdown-arrow">▼</span>
+          </div>
+          <div class="nav-dropdown-content">
+            <a href="/products.html" class="nav-dropdown-link">
+              <span class="nav-icon">📦</span>
+              <span class="nav-text">Ürünler</span>
+            </a>
+            <a href="/orders.html" class="nav-dropdown-link">
+              <span class="nav-icon">📋</span>
+              <span class="nav-text">Siparişler</span>
+            </a>
+            <a href="/delivery-confirmation.html" class="nav-dropdown-link">
+              <span class="nav-icon">🚚</span>
+              <span class="nav-text">Teslimat İşlemleri</span>
+            </a>
+          </div>
+        </div>
+        
+        <!-- Raf Yönetimi Dropdown -->
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-trigger">
+            <span class="nav-icon">🏬</span>
+            <span class="nav-text">Raf Yönetimi</span>
+            <span class="dropdown-arrow">▼</span>
+          </div>
+          <div class="nav-dropdown-content">
+            <a href="/shelf-scanner.html" class="nav-dropdown-link">
+              <span class="nav-icon">🔍</span>
+              <span class="nav-text">Rafa Dizim</span>
+            </a>
+            <a href="/shelf-locations.html" class="nav-dropdown-link">
+              <span class="nav-icon">📍</span>
+              <span class="nav-text">Lokasyonlar</span>
+            </a>
+            <a href="/shelf-admin.html" class="nav-dropdown-link">
+              <span class="nav-icon">⚙️</span>
+              <span class="nav-text">Raf Yönetimi</span>
+            </a>
+            <a href="/shelf-transfer.html" class="nav-dropdown-link">
+              <span class="nav-icon">🔄</span>
+              <span class="nav-text">Raflar Arası Transfer</span>
+            </a>
+            <a href="/inventory-count.html" class="nav-dropdown-link">
+              <span class="nav-icon">📊</span>
+              <span class="nav-text">Depo Sayım</span>
+            </a>
+            <a href="/stock-management.html" class="nav-dropdown-link">
+              <span class="nav-icon">📈</span>
+              <span class="nav-text">Stok Yönetimi</span>
+            </a>
+          </div>
+        </div>
+        
+        <!-- SSH Servis Dropdown -->
+        <div class="nav-dropdown">
+          <div class="nav-dropdown-trigger">
+            <span class="nav-icon">🔧</span>
+            <span class="nav-text">SSH Servis</span>
+            <span class="dropdown-arrow">▼</span>
+          </div>
+          <div class="nav-dropdown-content">
+            <a href="/service-request.html" class="nav-dropdown-link">
+              <span class="nav-icon">🔧</span>
+              <span class="nav-text">Servis Talep</span>
+            </a>
+            <a href="/service-dashboard.html" class="nav-dropdown-link">
+              <span class="nav-icon">📊</span>
+              <span class="nav-text">Servis Dashboard</span>
+            </a>
+            <a href="/ssh-inventory.html" class="nav-dropdown-link">
+              <span class="nav-icon">📋</span>
+              <span class="nav-text">SSH Envanter</span>
+            </a>
+          </div>
+        </div>
+      </nav>
+      <div id="mobileNav" class="mobile-nav">
+        <button id="mobileNavToggle" class="mobile-nav-toggle">
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+          <span class="hamburger-line"></span>
+        </button>
+        <div id="mobileNavMenu" class="mobile-nav-menu">
+          <div class="mobile-nav-header">
+            <h3>WMS Sistemi</h3>
+          </div>
+          <div class="mobile-nav-group">
+            <span class="mobile-nav-group-label">Ana Modüller</span>
+            <a href="/index.html" class="mobile-nav-link">
+              <span class="nav-icon">🏠</span>
+              <span class="nav-text">Ana Sayfa</span>
+            </a>
+            <a href="/products.html" class="mobile-nav-link">
+              <span class="nav-icon">📦</span>
+              <span class="nav-text">Ürünler</span>
+            </a>
+            <a href="/orders.html" class="mobile-nav-link">
+              <span class="nav-icon">📋</span>
+              <span class="nav-text">Siparişler</span>
+            </a>
+            <a href="/delivery-confirmation.html" class="mobile-nav-link">
+              <span class="nav-icon">🚚</span>
+              <span class="nav-text">Teslimat İşlemleri</span>
+            </a>
+          </div>
+          <div class="mobile-nav-group">
+            <span class="mobile-nav-group-label">Raf Yönetimi</span>
+            <a href="/shelf-scanner.html" class="mobile-nav-link">
+              <span class="nav-icon">🔍</span>
+              <span class="nav-text">Rafa Dizim</span>
+            </a>
+            <a href="/shelf-locations.html" class="mobile-nav-link">
+              <span class="nav-icon">📍</span>
+              <span class="nav-text">Lokasyonlar</span>
+            </a>
+            <a href="/shelf-admin.html" class="mobile-nav-link">
+              <span class="nav-icon">⚙️</span>
+              <span class="nav-text">Raf Yönetimi</span>
+            </a>
+            <a href="/shelf-transfer.html" class="mobile-nav-link">
+              <span class="nav-icon">🔄</span>
+              <span class="nav-text">Raflar Arası Transfer</span>
+            </a>
+            <a href="/inventory-count.html" class="mobile-nav-link">
+              <span class="nav-icon">📊</span>
+              <span class="nav-text">Depo Sayım</span>
+            </a>
+          </div>
+          <div class="mobile-nav-group">
+            <span class="mobile-nav-group-label">SSH Servis</span>
+            <a href="/service-request.html" class="mobile-nav-link">
+              <span class="nav-icon">🔧</span>
+              <span class="nav-text">Servis Talep</span>
+            </a>
+            <a href="/service-dashboard.html" class="mobile-nav-link">
+              <span class="nav-icon">📊</span>
+              <span class="nav-text">Servis Dashboard</span>
+            </a>
+            <a href="/ssh-inventory.html" class="mobile-nav-link">
+              <span class="nav-icon">📋</span>
+              <span class="nav-text">SSH Envanter</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </header>
+    
+    <!-- Page Actions -->
+    <div class="page-actions">
+        <button id="syncNetsisBtn" class="btn btn-success">
+            <span class="btn-icon">🔄</span>
+            <span class="btn-text">Netsis'ten Çek</span>
+        </button>
+        <button onclick="refresh()" class="btn btn-outline">
+            <span class="btn-icon">↻</span>
+            <span class="btn-text">Yenile</span>
+        </button>
+    </div>
+
+    <!-- Search & Filters -->
+    <div class="search-section">
+        <div class="search-bar">
+            <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="searchInput" placeholder="Ürün adı, SKU veya barkod ile ara..." class="search-input">
+            </div>
+        </div>
+        <div class="filter-controls">
+            <div class="filter-group">
+                <label class="filter-label">Durum:</label>
+                <select id="statusFilter" class="modern-select">
+                    <option value="">Tümü</option>
+                    <option value="no-packages">Paketsiz</option>
+                    <option value="has-packages">📦 Paketi Olanlar</option>
+                    <option value="duplicate-barcodes">🚨 Çakışan Barkodlar</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label class="filter-label">Sıralama:</label>
+                <select id="sortBy" class="modern-select">
+                    <option value="name">Ada Göre</option>
+                    <option value="sku">SKU'ya Göre</option>
+                </select>
+            </div>
+            <button onclick="filterProducts()" class="btn btn-filter">
+                <span class="btn-icon">⚡</span>
+                <span class="btn-text">Filtrele</span>
+            </button>
+            <button onclick="exportToCSV()" class="btn btn-export" style="background: #28a745; margin-left: 10px;">
+                <span class="btn-icon">📥</span>
+                <span class="btn-text">CSV İndir</span>
+            </button>
+        </div>
+    </div>
+
+
+    <!-- Products Table -->
+    <div class="table-container">
+        <table id="productsTable" class="data-table">
+            <thead>
+                <tr>
+                    <th><input type="checkbox" id="selectAll"></th>
+                    <th>Ürün Bilgileri</th>
+                    <th>SKU</th>
+                    <th>Paketler</th>
+                    <th>İşlemler</th>
+                </tr>
+            </thead>
+            <tbody id="productsTableBody">
+                <tr>
+                    <td colspan="5" class="text-center">
+                        <div class="loading-message">Ürünler yükleniyor...</div>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Pagination -->
+    <div id="paginationContainer" class="pagination-container">
+        <!-- Pagination will be generated by JS -->
+    </div>
+
+
+    <!-- Edit Product Modal -->
+    <div id="editProductModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ürün Düzenle</h3>
+                <button class="modal-close" onclick="closeEditModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="editProductForm">
+                    <input type="hidden" id="editProductId">
+                    <div class="form-group">
+                        <label for="editSku">SKU *</label>
+                        <input type="text" id="editSku" class="form-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editMainProductName">Ana Ürün Adı</label>
+                        <input type="text" id="editMainProductName" class="form-input" placeholder="Örnek: CC Yatak Odası">
+                    </div>
+                    <div class="form-group">
+                        <label for="editMainProductNameEn">Ana Ürün Adı (İngilizce)</label>
+                        <input type="text" id="editMainProductNameEn" class="form-input" placeholder="Example: CC Bedroom">
+                    </div>
+                    <div class="form-group">
+                        <label for="editName">Ürün Adı *</label>
+                        <input type="text" id="editName" class="form-input" required placeholder="Örnek: CC Gardrop (P.Siyah)">
+                    </div>
+                    <div class="form-group">
+                        <label for="editPrice">Fiyat *</label>
+                        <input type="number" id="editPrice" class="form-input" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="editBarcode">Ana Barkod</label>
+                        <input type="text" id="editBarcode" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="editDescription">Açıklama</label>
+                        <textarea id="editDescription" class="form-input" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeEditModal()" class="btn btn-secondary">İptal</button>
+                <button onclick="saveProduct()" class="btn btn-primary">Güncelle</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Package Modal -->
+    <div id="packageModal" class="modal">
+        <div class="modal-content extra-large">
+            <div class="modal-header">
+                <h3 id="packageModalTitle">Paket Yönetimi</h3>
+                <button class="modal-close" onclick="closePackageModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="packageModalContent">
+                    <div class="loading-message">Paketler yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Barcode Actions Modal -->
+    <div id="barcodeModal" class="modal">
+        <div class="modal-content large">
+            <div class="modal-header">
+                <h3>Barkod İşlemleri</h3>
+                <button class="modal-close" onclick="closeBarcodeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="barcodeModalContent">
+                    <div class="loading-message">Barkod seçenekleri yükleniyor...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Modal -->
+    <div id="confirmModal" class="modal">
+        <div class="modal-content small">
+            <div class="modal-header">
+                <h3>Onay</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">Bu işlemi gerçekleştirmek istediğinizden emin misiniz?</p>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeConfirmModal()" class="btn btn-secondary">İptal</button>
+                <button id="confirmButton" class="btn btn-danger">Onayla</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Success/Error Messages -->
+    <div id="messageContainer"></div>
+
+    <script>
+        // Global variables
+        window.products = [];
+        window.filteredProducts = [];
+        window.currentPage = 1;
+        window.itemsPerPage = 10;
+        window.selectedProducts = [];
+
+        // Initialize page when auth is complete
+        window.onAuthCompleted = function() {
+            initializePage();
+        };
+
+        // Main initialization function
+        async function initializePage() {
+            try {
+                showLoading(true);
+                await loadProducts();
+                setupEventListeners();
+                filterProducts(); // This renders the products table
+                updateStats();
+                showLoading(false);
+            } catch (error) {
+                console.error('Page initialization error:', error);
+                showMessage('Sayfa yüklenirken hata oluştu: ' + error.message, 'error');
+                showLoading(false);
+            }
+        }
+
+        // Show/hide loading overlay
+        function showLoading(show) {
+            const overlay = document.getElementById('loadingOverlay');
+            if (overlay) {
+                overlay.style.display = show ? 'flex' : 'none';
+            }
+        }
+
+        // Setup event listeners
+        function setupEventListeners() {
+            // Search input
+            const searchInput = document.getElementById('searchInput');
+            if (searchInput) {
+                searchInput.addEventListener('input', debounce(filterProducts, 300));
+            }
+
+            // Filter selects
+            const statusFilter = document.getElementById('statusFilter');
+            const sortBy = document.getElementById('sortBy');
+            if (statusFilter) statusFilter.addEventListener('change', filterProducts);
+            if (sortBy) sortBy.addEventListener('change', filterProducts);
+
+            // Select all checkbox
+            const selectAll = document.getElementById('selectAll');
+            if (selectAll) {
+                selectAll.addEventListener('change', toggleAllProducts);
+            }
+
+            // Modal click outside to close
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('modal')) {
+                    closeAllModals();
+                }
+            });
+
+            // Button event listeners
+            const barcodeActionsBtn = document.getElementById('barcodeActionsBtn');
+            if (barcodeActionsBtn) {
+                barcodeActionsBtn.addEventListener('click', openBarcodeModal);
+            }
+
+            const syncNetsisBtn = document.getElementById('syncNetsisBtn');
+            if (syncNetsisBtn) {
+                syncNetsisBtn.addEventListener('click', syncFromNetsis);
+            }
+        }
+
+        // Debounce function for search
+        function debounce(func, wait) {
+            let timeout;
+            return function executedFunction(...args) {
+                const later = () => {
+                    clearTimeout(timeout);
+                    func(...args);
+                };
+                clearTimeout(timeout);
+                timeout = setTimeout(later, wait);
+            };
+        }
+
+        // Show success/error messages
+        function showMessage(message, type = 'success') {
+            const container = document.getElementById('messageContainer');
+            if (!container) return;
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message message-${type}`;
+            messageDiv.innerHTML = `
+                <span>${message}</span>
+                <button onclick="this.parentElement.remove()" class="message-close">&times;</button>
+            `;
+
+            container.appendChild(messageDiv);
+
+            // Auto remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+
+        // Close all modals
+        function closeAllModals() {
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                modal.style.display = 'none';
+            });
+        }
+
+        // Sync products from Netsis
+        async function syncFromNetsis() {
+            if (!confirm('Netsis\'ten ürünler çekilsin mi? Bu işlem biraz zaman alabilir.')) {
+                return;
+            }
+
+            try {
+                showLoading(true);
+                showMessage('Netsis\'ten ürünler çekiliyor...', 'info');
+
+                const response = await fetch('/api/netsis/sync/products', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(result.error || 'Netsis sync başarısız');
+                }
+
+                showMessage(`✅ ${result.imported || 0} ürün Netsis'ten aktarıldı`, 'success');
+                
+                // Reload products after sync
+                await loadProducts();
+                filterProducts();
+                updateStats();
+                showLoading(false);
+
+            } catch (error) {
+                console.error('❌ Netsis sync error:', error);
+                showMessage('Netsis sync hatası: ' + error.message, 'error');
+                showLoading(false);
+            }
+        }
+
+        // Refresh page data
+        async function refresh() {
+            try {
+                showLoading(true);
+                await loadProducts();
+                filterProducts();
+                updateStats();
+                showMessage('Veriler güncellendi', 'success');
+                showLoading(false);
+            } catch (error) {
+                console.error('Refresh error:', error);
+                showMessage('Yenileme sırasında hata oluştu: ' + error.message, 'error');
+                showLoading(false);
+            }
+        }
+
+        // Initialize when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Check if auth is already complete
+            if (window.isAuthComplete) {
+                initializePage();
+            }
+            
+            // Initialize navigation
+            initializeNavigation();
+        });
+        
+        // Navigation initialization
+        function initializeNavigation() {
+            // Mobile navigation toggle
+            const mobileNavToggle = document.getElementById('mobileNavToggle');
+            const mobileNavMenu = document.getElementById('mobileNavMenu');
+            
+            if (mobileNavToggle) {
+                mobileNavToggle.addEventListener('click', () => {
+                    mobileNavMenu.classList.toggle('show');
+                });
+            }
+
+            // Close mobile menu when clicking outside
+            document.addEventListener('click', (e) => {
+                const nav = document.getElementById('mobileNav');
+                if (nav && mobileNavMenu && !nav.contains(e.target)) {
+                    mobileNavMenu.classList.remove('show');
+                }
+            });
+
+            // Logout functionality
+            const logoutBtn = document.getElementById('logoutBtn');
+            if (logoutBtn) {
+                logoutBtn.addEventListener('click', async () => {
+                    try {
+                        await fetch('/api/auth/logout', { 
+                            method: 'POST', 
+                            credentials: 'include' 
+                        });
+                        window.location.href = '/login.html';
+                    } catch (error) {
+                        console.error('Logout error:', error);
+                        window.location.href = '/login.html';
+                    }
+                });
+            }
+        }
+    </script>
+</body>
+</html>

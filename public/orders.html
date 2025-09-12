@@ -1,0 +1,1975 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+  <title>Siparişler</title>
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+  <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <script src="/assets/js/auth.js"></script>
+  <style>
+    /* Dropdown Navigation Styles */
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--header-bg, #1e293b);
+    }
+    
+    .nav-link.standalone {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      text-decoration: none;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .nav-link.standalone:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .nav-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      user-select: none;
+    }
+    
+    .nav-dropdown-trigger:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-trigger {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .dropdown-arrow {
+      margin-left: 8px;
+      font-size: 10px;
+      transition: transform 0.2s ease;
+    }
+    
+    .nav-dropdown:hover .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .nav-dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 220px;
+      background: var(--card, #ffffff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      z-index: 1000;
+      overflow: hidden;
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-content {
+      display: block;
+      animation: dropdownFadeIn 0.2s ease;
+    }
+    
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .nav-dropdown-link {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      text-decoration: none;
+      color: var(--fg, #374151);
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--border, #f3f4f6);
+    }
+    
+    .nav-dropdown-link:last-child {
+      border-bottom: none;
+    }
+    
+    .nav-dropdown-link:hover {
+      background: var(--hover, #f8fafc);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-icon {
+      margin-right: 10px;
+      font-size: 16px;
+    }
+    
+    .nav-text {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .main-nav {
+        display: none;
+      }
+    }
+    
+    /* Global mobile overflow fix */
+    html, body {
+      max-width: 100%;
+      overflow-x: hidden;
+      box-sizing: border-box;
+    }
+    
+    *, *:before, *:after {
+      box-sizing: border-box;
+    }
+    
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid #ddd;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      padding: 12px 20px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      font-weight: 500;
+    }
+    .tab-btn:hover {
+      background-color: #f5f5f5;
+    }
+    .tab-btn.active {
+      border-bottom-color: #007bff;
+      color: #007bff;
+    }
+    .table-container {
+      overflow-x: auto;
+    }
+    
+    /* Desktop table optimizations */
+    @media (min-width: 769px) {
+      table {
+        table-layout: fixed;
+        width: 100%;
+      }
+      
+      th:nth-child(1), td:nth-child(1) { width: 12%; } /* Sipariş No */
+      th:nth-child(2), td:nth-child(2) { width: 20%; } /* Müşteri */
+      th:nth-child(3), td:nth-child(3) { width: 12%; } /* Durum */
+      th:nth-child(4), td:nth-child(4) { width: 25%; } /* Kalemler */
+      th:nth-child(5), td:nth-child(5) { width: 15%; } /* Tarih */
+      th:nth-child(6), td:nth-child(6) { width: 16%; } /* İşlem */
+      
+      .action-btn {
+        width: 100%;
+        max-width: none;
+      }
+    }
+    
+    /* Mobile optimizations - clean card layout */
+    @media (max-width: 768px) {
+      /* Site header mobile fixes */
+      header {
+        padding: 12px 16px;
+        flex-wrap: nowrap;
+      }
+      
+      header h1 {
+        font-size: 18px;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      
+      header nav {
+        display: none;
+      }
+      
+      /* COMPLETE FILTER OVERRIDE FOR MOBILE */
+      .filters-mobile {
+        display: block !important;
+        width: 100% !important;
+        margin: 0 0 20px 0 !important;
+        padding: 0 !important;
+        background: none !important;
+        border: none !important;
+        flex: none !important;
+        gap: 0 !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        justify-content: flex-start !important;
+        flex-wrap: nowrap !important;
+      }
+      
+      .filters-mobile * {
+        float: none !important;
+        position: static !important;
+        transform: none !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+        left: auto !important;
+        right: auto !important;
+        top: auto !important;
+        bottom: auto !important;
+      }
+      
+      .filters-mobile input,
+      .filters-mobile select,
+      .filters-mobile button {
+        display: block !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        margin: 0 0 12px 0 !important;
+        padding: 12px 16px !important;
+        font-size: 16px !important;
+        border: 2px solid #ddd !important;
+        border-radius: 8px !important;
+        background: #0e1a30 !important;
+        color: var(--fg) !important;
+        box-sizing: border-box !important;
+        flex: none !important;
+        position: relative !important;
+        clear: both !important;
+      }
+      
+      .filters-mobile input:focus,
+      .filters-mobile select:focus {
+        border-color: var(--accent) !important;
+        outline: none !important;
+      }
+      /* Reset everything for mobile */
+      .table-container {
+        overflow: visible;
+        margin: 0;
+        padding: 0;
+      }
+      
+      table {
+        display: none !important;
+      }
+      
+      /* Mobile card layout */
+      .mobile-orders {
+        display: block !important;
+      }
+      
+      .order-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        margin-bottom: 16px;
+        padding: 16px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      }
+      
+      .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      
+      .order-number {
+        font-size: 16px;
+        font-weight: bold;
+        color: var(--accent);
+      }
+      
+      .order-status {
+        font-size: 11px;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-weight: 500;
+      }
+      
+      .order-info {
+        margin-bottom: 12px;
+      }
+      
+      .info-row {
+        display: flex;
+        margin-bottom: 8px;
+        align-items: flex-start;
+      }
+      
+      .info-label {
+        font-weight: 600;
+        color: var(--muted);
+        min-width: 70px;
+        font-size: 13px;
+      }
+      
+      .info-value {
+        flex: 1;
+        font-size: 14px;
+        line-height: 1.3;
+      }
+      
+      .order-items-mobile {
+        background: var(--hover);
+        border-radius: 6px;
+        padding: 8px;
+        margin: 8px 0;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+      
+      .mobile-action-btn {
+        width: 100%;
+        padding: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 8px;
+      }
+      
+      .btn-primary-mobile {
+        background: var(--accent);
+        color: white;
+      }
+      
+      .btn-warning-mobile {
+        background: #ffc107;
+        color: #000;
+      }
+      
+      .btn-success-mobile {
+        background: var(--success);
+        color: white;
+      }
+      
+      .btn-disabled-mobile {
+        background: var(--muted);
+        color: var(--fg);
+        opacity: 0.6;
+        cursor: not-allowed;
+      }
+      
+      .btn-danger-mobile {
+        background: var(--danger);
+        color: white;
+      }
+      
+      /* Header and filters mobile optimization */
+      .order-header-section {
+        flex-direction: column !important;
+        gap: 12px !important;
+        align-items: stretch !important;
+      }
+      
+      .header-title-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      
+      .header-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+      }
+      
+      
+      /* Tab navigation improvements */
+      .tabs {
+        margin-bottom: 16px;
+        border-bottom: 1px solid var(--border);
+        overflow-x: auto;
+        white-space: nowrap;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      .tab-btn {
+        min-width: 80px;
+        padding: 8px 16px;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      
+      /* Main layout adjustments */
+      main {
+        padding: 8px !important;
+        margin: 0 !important;
+        max-width: 100vw;
+        overflow-x: hidden;
+      }
+      
+      .card {
+        margin: 0 0 16px 0 !important;
+        padding: 16px !important;
+        border-radius: 12px;
+      }
+      
+      /* Hide desktop table on mobile */
+      .desktop-table {
+        display: none !important;
+      }
+    }
+    
+    /* Desktop - hide mobile cards */
+    @media (min-width: 769px) {
+      .mobile-orders {
+        display: none !important;
+      }
+      
+      .desktop-table {
+        display: table !important;
+      }
+      
+      /* Reset mobile header styles for desktop */
+      .order-header-section {
+        flex-direction: row !important;
+        align-items: center !important;
+      }
+      
+      .header-title-row {
+        flex: 1;
+        justify-content: space-between;
+      }
+      
+      .filters-mobile {
+        display: flex !important;
+        flex-direction: row !important;
+        gap: 12px !important;
+        align-items: center;
+        margin-bottom: 16px !important;
+      }
+      
+      .filters-mobile input {
+        flex: 1 !important;
+        min-width: 200px !important;
+        width: auto !important;
+        margin-bottom: 0 !important;
+        padding: 8px !important;
+        background: #0e1a30 !important;
+      }
+      
+      .filters-mobile select {
+        width: auto !important;
+        flex: none !important;
+        margin-bottom: 0 !important;
+        padding: 8px !important;
+        background: #0e1a30 !important;
+      }
+    }
+    
+    /* General action button styles */
+    .action-btn {
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      background: var(--accent);
+      color: white;
+      text-align: center;
+      max-width: 150px;
+      box-sizing: border-box;
+    }
+    
+    .action-btn:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    }
+    
+    .action-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      background: var(--muted);
+    }
+    
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      text-transform: uppercase;
+    }
+    .status-open { background: #e3f2fd; color: #1976d2; }
+    .status-approved { background: #fff3e0; color: #f57c00; }
+    .status-fulfilled { background: #e8f5e8; color: #4caf50; }
+    .status-cancelled { background: #ffebee; color: #f44336; }
+    .status-partially-fulfilled { background: #ffeaa7; color: #d63031; }
+    .status-new { background: #e8f5e8; color: #2e7d32; }
+    .order-items {
+      max-width: 250px;
+      font-size: 12px;
+      color: #666;
+    }
+    .order-date {
+      font-size: 12px;
+      color: #666;
+    }
+    .action-btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      margin-right: 4px;
+    }
+    .btn-pick {
+      background: #4caf50;
+      color: white;
+    }
+    .btn-pick:hover {
+      background: #45a049;
+    }
+    .btn-pick:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+    .fulfillment-status {
+      font-size: 11px;
+      color: #666;
+      margin-top: 2px;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <h1>WMS Netsis Entegre</h1>
+    <span class="header-subtitle">Sipariş Yönetimi</span>
+  </div>
+  <div class="header-user">
+    <div class="user-info" id="userInfo" style="display: none;">
+      <span class="user-name" id="userName"></span>
+      <span class="user-role" id="userRole"></span>
+      <button class="logout-btn" id="logoutBtn">Çıkış</button>
+    </div>
+  </div>
+  <nav class="main-nav">
+    <!-- Ana Sayfa linki -->
+    <a href="/index.html" class="nav-link standalone">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-text">Ana Sayfa</span>
+    </a>
+    
+    <!-- Ana Modüller Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">Ana Modüller</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/products.html" class="nav-dropdown-link">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Ürünler</span>
+        </a>
+        <a href="/orders.html" class="nav-dropdown-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Siparişler</span>
+        </a>
+        <a href="/delivery-confirmation.html" class="nav-dropdown-link">
+          <span class="nav-icon">🚚</span>
+          <span class="nav-text">Teslimat İşlemleri</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Raf Yönetimi Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">🏬</span>
+        <span class="nav-text">Raf Yönetimi</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/shelf-scanner.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Rafa Dizim</span>
+        </a>
+        <a href="/shelf-locations.html" class="nav-dropdown-link">
+          <span class="nav-icon">📍</span>
+          <span class="nav-text">Lokasyonlar</span>
+        </a>
+        <a href="/shelf-admin.html" class="nav-dropdown-link">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Raf Yönetimi</span>
+        </a>
+        <a href="/shelf-transfer.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔄</span>
+          <span class="nav-text">Raflar Arası Transfer</span>
+        </a>
+        <a href="/inventory-count.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Depo Sayım</span>
+        </a>
+        <a href="/stock-management.html" class="nav-dropdown-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Stok Yönetimi</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- SSH Servis Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">🔧</span>
+        <span class="nav-text">SSH Servis</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/service-request.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-text">Servis Talep</span>
+        </a>
+        <a href="/service-dashboard.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Servis Dashboard</span>
+        </a>
+        <a href="/ssh-inventory.html" class="nav-dropdown-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+  <div id="mobileNav" class="mobile-nav">
+    <button id="mobileNavToggle" class="mobile-nav-toggle">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+    <div id="mobileNavMenu" class="mobile-nav-menu">
+      <div class="mobile-nav-header">
+        <h3>WMS Sistemi</h3>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Ana Modüller</span>
+        <a href="/index.html" class="mobile-nav-link">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-text">Ana Sayfa</span>
+        </a>
+        <a href="/products.html" class="mobile-nav-link">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Ürünler</span>
+        </a>
+        <a href="/orders.html" class="mobile-nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Siparişler</span>
+        </a>
+        <a href="/delivery-confirmation.html" class="mobile-nav-link">
+          <span class="nav-icon">🚚</span>
+          <span class="nav-text">Teslimat İşlemleri</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Raf Yönetimi</span>
+        <a href="/shelf-scanner.html" class="mobile-nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Rafa Dizim</span>
+        </a>
+        <a href="/shelf-locations.html" class="mobile-nav-link">
+          <span class="nav-icon">📍</span>
+          <span class="nav-text">Lokasyonlar</span>
+        </a>
+        <a href="/shelf-admin.html" class="mobile-nav-link">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Raf Yönetimi</span>
+        </a>
+        <a href="/shelf-transfer.html" class="mobile-nav-link">
+          <span class="nav-icon">🔄</span>
+          <span class="nav-text">Raflar Arası Transfer</span>
+        </a>
+        <a href="/inventory-count.html" class="mobile-nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Depo Sayım</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">SSH Servis</span>
+        <a href="/service-request.html" class="mobile-nav-link">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-text">Servis Talep</span>
+        </a>
+        <a href="/service-dashboard.html" class="mobile-nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Servis Dashboard</span>
+        </a>
+        <a href="/ssh-inventory.html" class="mobile-nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+
+<main class="grid" style="max-width:1200px;margin:auto;padding:16px">
+  <section class="card">
+    <div class="flex order-header-section" style="justify-content:space-between;align-items:center;margin-bottom:16px">
+      <div class="header-title-row">
+        <h2>Siparişler</h2>
+        <div class="header-actions">
+          <span class="badge" id="syncOrdersOut"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Filtre ve Arama -->
+    <div class="filters-mobile">
+      <input type="text" id="searchInput" placeholder="Sipariş no veya müşteri adı ara...">
+      <select id="statusFilter">
+        <option value="all">Tüm Durumlar</option>
+        <option value="open" selected>Açık</option>
+        <option value="approved">Onaylanmış</option>
+        <option value="fulfilled">Tamamlanmış</option>
+        <option value="cancelled">İptal Edilmiş</option>
+      </select>
+    </div>
+
+    <!-- Sekmeler -->
+    <div class="tabs" style="margin-bottom:16px">
+      <button class="tab-btn active" data-tab="ongoing">Devam Eden (<span id="ongoingCount">0</span>)</button>
+      <button class="tab-btn" data-tab="partial">Kısmi Toplama (<span id="partialCount">0</span>)</button>
+      <button class="tab-btn" data-tab="completed">Tamamlanan (<span id="completedCount">0</span>)</button>
+    </div>
+
+    <!-- Sipariş Tablosu - Desktop -->
+    <div class="table-container desktop-table">
+      <table id="ordTable">
+        <thead>
+          <tr>
+            <th>Sipariş No</th>
+            <th>Müşteri</th>
+            <th>Durum</th>
+            <th>Kalemler</th>
+            <th>Tarih</th>
+            <th>İşlem</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    
+    <!-- Sipariş Cards - Mobile -->
+    <div class="mobile-orders" style="display: none;">
+      <div id="mobileOrderList"></div>
+    </div>
+  </section>
+</main>
+
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+const API = {
+  listOrders: () => {
+    console.log('🌐 Fetching /api/orders...');
+    return fetch('/api/orders').then(r => {
+      console.log('📡 Response status:', r.status);
+      return r.json();
+    }).catch(error => {
+      console.error('🚨 API Error:', error);
+      throw error;
+    });
+  },
+  getOrder: (id) => fetch('/api/orders/' + id).then(r => r.json()),
+  createPick: (order_id) => fetch('/api/picks', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_id })
+  }).then(r => r.json()),
+  syncNetsisData: () => fetch('/api/netsis/sync/products', { method: 'POST' }).then(r => r.json()),
+};
+
+// Global state
+let allOrders = [];
+let netsisOrders = [];
+let currentTab = 'ongoing';
+let searchTerm = '';
+let statusFilter = 'open';
+
+// Müşteri adını temizleme fonksiyonu
+function cleanCustomerName(customerName) {
+  if (!customerName || customerName === '-') return 'Bilinmeyen Müşteri';
+  
+  const customerNameMapping = {};
+  
+  const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidPattern.test(customerName)) {
+    const realName = customerNameMapping[customerName.toLowerCase()];
+    if (realName) return realName;
+    return customerName; // UUID'yi olduğu gibi döndür, otomatik dönüşüm yok
+  }
+  
+  return customerName;
+}
+
+// Durum bazında siparişleri kategorize et
+function categorizeOrder(order) {
+  if (order.status === 'cancelled' || order.fulfillment_status === 'CANCELLED') {
+    return 'cancelled';
+  }
+  
+  if (order.fulfillment_status === 'FULFILLED' || order.status === 'fulfilled') {
+    return 'completed';
+  }
+  
+  // Kısmi toplama tab'ı için
+  if (order.fulfillment_status === 'PARTIALLY_FULFILLED') {
+    return 'partial';
+  }
+  
+  return 'ongoing';
+}
+
+// Netsis siparişlerini yükle
+async function loadNetsisOrders() {
+  try {
+    const response = await fetch('/api/netsis/orders?status=new');
+    if (!response.ok) throw new Error('Netsis siparişleri yüklenemedi');
+    const data = await response.json();
+    
+    netsisOrders = (data.orders || []).map(order => ({
+      ...order,
+      created_date: new Date(order.sync_tarihi),
+      total_display: parseFloat(order.toplam_tutar || 0).toFixed(2)
+    }));
+    
+    console.log('Loaded Netsis orders:', netsisOrders.length);
+    return netsisOrders;
+  } catch (error) {
+    console.error('Error loading Netsis orders:', error);
+    netsisOrders = [];
+    return [];
+  }
+}
+
+
+// Siparişleri yükle - Sadece WMS veritabanından
+async function loadOrders() {
+  try {
+    console.log('🔄 Loading orders from API...');
+    // WMS API'sinden tüm siparişleri yükle
+    const wmsResponse = await API.listOrders();
+    console.log('📦 Orders loaded:', wmsResponse?.length || 0, 'orders');
+    allOrders = wmsResponse || [];
+    
+    // Netsis siparişlerini yükle (şimdilik boş)
+    netsisOrders = [];
+    
+    updateCounts();
+    filterAndDisplayOrders();
+    console.log('✅ Orders display updated');
+  } catch (error) {
+    console.error('❌ Error loading orders:', error);
+    // Error durumunda boş dizi göster
+    allOrders = [];
+    updateCounts();
+    filterAndDisplayOrders();
+  }
+}
+
+// Sayaç güncellemeleri - Sadece WMS siparişleri
+function updateCounts() {
+  const ongoingCount = allOrders.filter(o => categorizeOrder(o) === 'ongoing').length;
+  const partialCount = allOrders.filter(o => categorizeOrder(o) === 'partial').length;
+  const completedCount = allOrders.filter(o => categorizeOrder(o) === 'completed').length;
+  
+  $('#ongoingCount').textContent = ongoingCount;
+  $('#partialCount').textContent = partialCount;
+  $('#completedCount').textContent = completedCount;
+}
+
+// Siparişleri filtrele ve göster - Sadece WMS siparişleri
+function filterAndDisplayOrders() {
+  let filteredOrders = [];
+  
+  if (currentTab === 'ongoing') {
+    filteredOrders = allOrders.filter(o => categorizeOrder(o) === 'ongoing');
+  } else if (currentTab === 'partial') {
+    filteredOrders = allOrders.filter(o => categorizeOrder(o) === 'partial');
+  } else if (currentTab === 'completed') {
+    filteredOrders = allOrders.filter(o => categorizeOrder(o) === 'completed');
+  } else {
+    // Varsayılan: Devam eden siparişler
+    filteredOrders = allOrders.filter(o => categorizeOrder(o) === 'ongoing');
+  }
+  
+  // Durum filtresi - Tamamlanan ve kısmi toplama sekmelerinde durum filtresini uygulama
+  if (statusFilter !== 'all' && currentTab !== 'completed' && currentTab !== 'partial') {
+    filteredOrders = filteredOrders.filter(o => o.status === statusFilter);
+  }
+  
+  // Arama filtresi
+  if (searchTerm.trim()) {
+    const term = searchTerm.toLowerCase().trim();
+    filteredOrders = filteredOrders.filter(o => {
+      // Arama için de aynı öncelik sırasını kullan
+      const customerDisplay = o.cariIsmi || o.cari_ismi || o.customer_name || o.customer_code || '';
+      const cleanedCustomerName = cleanCustomerName(customerDisplay);
+      return o.order_number.toLowerCase().includes(term) ||
+             cleanedCustomerName.toLowerCase().includes(term);
+    });
+  }
+  
+  displayOrders(filteredOrders);
+}
+
+// Siparişleri tabloda göster
+function displayOrders(orders) {
+  const tbody = $('#ordTable tbody');
+  
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#666">Sipariş bulunamadı</td></tr>';
+    return;
+  }
+  
+  // Sipariş numarasına göre büyükten küçüğe sırala
+  const sortedOrders = [...orders].sort((a, b) => {
+    const orderA = parseInt(a.order_number) || 0;
+    const orderB = parseInt(b.order_number) || 0;
+    return orderB - orderA; // Büyükten küçüğe
+  });
+  
+  // Desktop table rendering
+  tbody.innerHTML = sortedOrders.map(o => {
+    const items = o.items || [];
+    const count = items.length;
+    
+    let itemDetails = '';
+    if (count === 0) {
+      itemDetails = '<span style="color:#999;font-style:italic;">Sipariş kalemleri yükleniyor...</span>';
+    } else {
+      itemDetails = items.map(item => {
+        // Ürün adı - önce product_name, sonra sku, sonra varsayılan
+        const productName = (item.product_name || item.sku || item.product_sku || 'Ürün adı yok');
+        const displayName = productName.length > 30 
+          ? productName.substring(0, 30) + '...'
+          : productName;
+        
+        // Renk durumu - Products tablosundan gelen gerçek renk bilgisi
+        let colorInfo = '';
+        if (item.product_color && item.product_color.trim()) {
+          const color = item.product_color.trim();
+          let bgColor = '#666'; // Default
+          
+          // Renk kodları
+          if (color.toUpperCase().includes('BEYAZ') || color.toUpperCase().includes('WHITE')) {
+            bgColor = '#f8f9fa'; colorInfo = ` <span style="color:#000;background:${bgColor};padding:2px 6px;border-radius:3px;font-size:10px;border:1px solid #ccc;">${color}</span>`;
+          } else if (color.toUpperCase().includes('SİYAH') || color.toUpperCase().includes('BLACK')) {
+            bgColor = '#000'; colorInfo = ` <span style="color:#fff;background:${bgColor};padding:2px 6px;border-radius:3px;font-size:10px;">${color}</span>`;
+          } else if (color.toUpperCase().includes('KAHVE') || color.toUpperCase().includes('BROWN')) {
+            bgColor = '#8B4513'; colorInfo = ` <span style="color:#fff;background:${bgColor};padding:2px 6px;border-radius:3px;font-size:10px;">${color}</span>`;
+          } else if (color.toUpperCase().includes('GRİ') || color.toUpperCase().includes('GRAY')) {
+            bgColor = '#666'; colorInfo = ` <span style="color:#fff;background:${bgColor};padding:2px 6px;border-radius:3px;font-size:10px;">${color}</span>`;
+          } else if (color.toUpperCase().includes('ANTRASIT') || color.toUpperCase().includes('ANTHRACITE')) {
+            bgColor = '#654321'; colorInfo = ` <span style="color:#fff;background:${bgColor};padding:2px 6px;border-radius:3px;font-size:10px;">${color}</span>`;
+          } else {
+            // Diğer renkler için varsayılan stil
+            colorInfo = ` <span style="color:#fff;background:#666;padding:2px 6px;border-radius:3px;font-size:10px;">${color}</span>`;
+          }
+        }
+        
+        // Miktar kontrolü
+        const quantity = item.quantity || item.miktar || 1;
+        
+        return `• ${displayName}${colorInfo} x${quantity}`;
+      }).slice(0, 3).join('<br>') + (items.length > 3 ? '<br>+ ' + (items.length - 3) + ' kalem daha...' : '');
+    }
+    
+    // Müşteri ismi öncelikli gösterim - önce cari ismi, sonra customer_name, sonra customer_code
+    const customerDisplay = o.cariIsmi || o.cari_ismi || o.customer_name || o.customer_code || 'Bilinmeyen Müşteri';
+    const rawCustomerName = cleanCustomerName(customerDisplay);
+    const displayCustomerName = rawCustomerName && rawCustomerName.length > 25 
+      ? rawCustomerName.substring(0, 25) + '...'
+      : rawCustomerName;
+    
+    // Durum class ve text belirleme
+    let statusClass, statusText;
+    
+    if (o.fulfillment_status === 'PARTIALLY_FULFILLED') {
+      statusClass = 'status-partially-fulfilled';
+      statusText = 'Kısmen Karşılandı';
+    } else if (o.fulfillment_status === 'FULFILLED') {
+      statusClass = 'status-fulfilled';
+      statusText = 'Tamamlanmış';
+    } else {
+      statusClass = `status-${o.status}`;
+      statusText = {
+        'open': 'Açık',
+        'approved': 'Onaylanmış',
+        'fulfilled': 'Tamamlanmış',
+        'cancelled': 'İptal Edilmiş'
+      }[o.status] || o.status;
+    }
+    
+    // Tarih formatlaması - Türkiye saati
+    const orderDate = new Date(o.created_at).toLocaleDateString('tr-TR', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    // Pick butonu mantığı
+    let pickBtn;
+    
+    // İptal edilmiş siparişler için özel durum
+    if (o.category === 'cancelled') {
+      pickBtn = `<button class="action-btn btn-cancelled" disabled style="background:#dc3545;color:white;">❌ İptal</button>`;
+    } else if (o.source === 'external' || o.source === 'external_sync') {
+      // Harici siparişler için özel buton
+      const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
+      
+      if (isFullyFulfilled) {
+        // Tamamlanmış harici siparişler için hem irsaliye oluştur hem PDF butonları
+        const hasDispatchNote = o.netsis_delivery_note_id;
+        let dispatchBtn = '';
+        let pdfBtn = '';
+        
+        if (hasDispatchNote) {
+          dispatchBtn = `<button class="action-btn btn-pick" disabled title="İrsaliye oluşturuldu: ${hasDispatchNote}" style="background:#28a745;color:white;margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
+        } else {
+          dispatchBtn = `<button class="action-btn btn-dispatch" data-dispatch="${o.id}" title="Netsis'te irsaliye oluştur" style="background:#007bff;color:white;margin-right:4px;">📋 İrsaliye Oluştur</button>`;
+        }
+        
+        if (o.pick_id) {
+          pdfBtn = `<button class="action-btn btn-pdf-invoice" data-pick-id="${o.pick_id}" title="İrsaliye PDF'ini indir" style="background:#dc3545;color:white;">📄 PDF İrsaliye</button>`;
+        } else {
+          pdfBtn = `<button class="action-btn" disabled title="Pick ID bulunamadı" style="background:#6c757d;color:white;">📄 PDF Yok</button>`;
+        }
+        
+        pickBtn = dispatchBtn + pdfBtn;
+      } else {
+        pickBtn = `<button class="action-btn btn-pick btn-external" data-external-pick="${o.id}" title="Harici sipariş toplamaya başla" style="background:#28a745;color:white;">📦 Harici Topla</button>`;
+      }
+    } else if (o.pick_status === 'partial') {
+      // Kısmi toplandı - devam et butonu
+      pickBtn = `<button class="action-btn btn-pick btn-partial" data-pick="${o.pick_id}" style="background:#ffc107;color:#000;" title="Toplama işlemine devam et">⏳ Devam</button>`;
+    } else if (o.pick_status === 'active') {
+      // Aktif pick var - devam et
+      pickBtn = `<button class="action-btn btn-pick btn-active" data-pick="${o.pick_id}" title="Toplama işlemine devam et">▶️ Devam</button>`;
+    } else {
+      // Normal durum kontrolü - kısmen karşılanmış siparişler de toplanabilir olmalı
+      const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
+      
+      if (isFullyFulfilled) {
+        // Tamamlanmış siparişler için hem irsaliye oluştur hem PDF butonları
+        const hasDispatchNote = o.netsis_delivery_note_id;
+        let dispatchBtn = '';
+        let pdfBtn = '';
+        
+        if (hasDispatchNote) {
+          dispatchBtn = `<button class="action-btn btn-pick" disabled title="İrsaliye oluşturuldu: ${hasDispatchNote}" style="background:#28a745;color:white;margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
+        } else {
+          dispatchBtn = `<button class="action-btn btn-dispatch" data-dispatch="${o.id}" title="Netsis'te irsaliye oluştur" style="background:#007bff;color:white;margin-right:4px;">📋 İrsaliye Oluştur</button>`;
+        }
+        
+        if (o.pick_id) {
+          pdfBtn = `<button class="action-btn btn-pdf-invoice" data-pick-id="${o.pick_id}" title="İrsaliye PDF'ini indir" style="background:#dc3545;color:white;">📄 PDF İrsaliye</button>`;
+        } else {
+          pdfBtn = `<button class="action-btn" disabled title="Pick ID bulunamadı" style="background:#6c757d;color:white;">📄 PDF Yok</button>`;
+        }
+        
+        pickBtn = dispatchBtn + pdfBtn;
+      } else {
+        // Açık siparişler, kısmen karşılanmış veya karşılanmamış siparişler tolanabilir
+        if (o.fulfillment_status === 'PARTIALLY_FULFILLED') {
+          // Kısmen karşılanmış siparişler
+          if (o.pick_id) {
+            // Mevcut pick var - devam et
+            pickBtn = `<button class="action-btn btn-pick btn-partial" data-pick="${o.pick_id}" style="background:#ffc107;color:#000;" title="Toplama işlemine devam et">⏳ Devam</button>`;
+          } else {
+            // Pick yok - yeni pick oluşturup devam et (otomatik)
+            pickBtn = `<button class="action-btn btn-pick btn-partial-new" data-pick="${o.id}" style="background:#ffc107;color:#000;" title="Toplama işlemine devam et">⏳ Devam</button>`;
+          }
+        } else {
+          // Karşılanmamış siparişler için toplama başlat
+          pickBtn = `<button class="action-btn btn-pick" data-pick="${o.id}" title="Sipariş toplamaya başla">📦 Topla</button>`;
+        }
+      }
+    }
+    
+    // Teslimat durumu bilgisini kaldırdık - artık gerekli değil
+    
+    return `<tr>
+      <td data-label="Sipariş No"><strong>#${o.order_number}</strong></td>
+      <td data-label="Müşteri">${displayCustomerName}</td>
+      <td data-label="Durum"><span class="status-badge ${statusClass}">${statusText}</span></td>
+      <td data-label="Kalemler"><div class="order-items">${count} kalem<br>${itemDetails}</div></td>
+      <td data-label="Tarih"><div class="order-date">${orderDate}</div></td>
+      <td data-label="İşlem">${pickBtn}</td>
+    </tr>`;
+  }).join('');
+  
+  // Mobile card rendering
+  const mobileOrderList = document.getElementById('mobileOrderList');
+  if (mobileOrderList) {
+    mobileOrderList.innerHTML = sortedOrders.map(o => {
+      const items = o.items || [];
+      const count = items.length;
+      
+      let itemDetails = '';
+      if (count === 0) {
+        itemDetails = 'Sipariş kalemleri yükleniyor...';
+      } else {
+        itemDetails = items.map(item => {
+          // Ürün adı - önce product_name, sonra sku, sonra varsayılan
+          const productName = (item.product_name || item.sku || item.product_sku || 'Ürün adı yok');
+          const displayName = productName.length > 40 
+            ? productName.substring(0, 40) + '...'
+            : productName;
+            
+          // Renk durumu - Products tablosundan gelen gerçek renk bilgisi - mobil için
+          let colorInfo = '';
+          if (item.product_color && item.product_color.trim()) {
+            colorInfo = ` (${item.product_color.trim()})`;
+          }
+          
+          // Miktar kontrolü
+          const quantity = item.quantity || item.miktar || 1;
+          
+          return `• ${displayName}${colorInfo} x${quantity}`;
+        }).slice(0, 2).join('\n') + (items.length > 2 ? '\n+ ' + (items.length - 2) + ' kalem daha...' : '');
+      }
+      
+      // Mobile için de müşteri ismi öncelikli gösterim
+      const customerDisplay = o.cariIsmi || o.cari_ismi || o.customer_name || o.customer_code || 'Bilinmeyen Müşteri';
+      const rawCustomerName = cleanCustomerName(customerDisplay);
+      const displayCustomerName = rawCustomerName && rawCustomerName.length > 30 
+        ? rawCustomerName.substring(0, 30) + '...'
+        : rawCustomerName;
+      
+      // Status badge for mobile
+      let statusClass, statusText;
+      if (o.fulfillment_status === 'PARTIALLY_FULFILLED') {
+        statusClass = 'btn-warning-mobile';
+        statusText = 'Kısmen Karşılandı';
+      } else if (o.fulfillment_status === 'FULFILLED') {
+        statusClass = 'btn-success-mobile';
+        statusText = 'Tamamlanmış';
+      } else {
+        statusClass = 'btn-primary-mobile';
+        statusText = {
+          'open': 'Açık',
+          'approved': 'Onaylanmış',
+          'fulfilled': 'Tamamlanmış',
+          'cancelled': 'İptal Edilmiş'
+        }[o.status] || o.status;
+      }
+      
+      // Date formatting - Türkiye saati
+      const orderDate = new Date(o.created_at).toLocaleDateString('tr-TR', {
+        day: '2-digit',
+        month: '2-digit', 
+        year: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+      
+      // Mobile action button
+      let mobileBtn, btnClass = 'mobile-action-btn';
+      if (o.category === 'cancelled') {
+        btnClass += ' btn-danger-mobile';
+        mobileBtn = `<button class="${btnClass}" disabled>❌ İptal Edildi</button>`;
+      } else if (o.source === 'external' || o.source === 'external_sync') {
+        // Harici siparişler için mobil buton
+        const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
+        if (isFullyFulfilled) {
+          // Tamamlanmış harici siparişler için irsaliye ve PDF butonları (mobil)
+          const hasDispatchNote = o.netsis_delivery_note_id;
+          if (hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-success-mobile';
+            mobileBtn = `<button class="${btnClass}" disabled style="margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
+          } else if (hasDispatchNote && !o.pick_id) {
+            btnClass += ' btn-success-mobile';
+            mobileBtn = `<button class="${btnClass}" disabled>📋 İrsaliye (${hasDispatchNote})</button>`;
+          } else if (!hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}" style="margin-right:4px;">📋 İrsaliye Oluştur</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
+          } else {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}">📋 İrsaliye Oluştur</button>`;
+          }
+        } else {
+          btnClass += ' btn-success-mobile';
+          mobileBtn = `<button class="${btnClass}" data-external-pick="${o.id}">📦 Harici Topla</button>`;
+        }
+      } else if (o.pick_status === 'partial') {
+        btnClass += ' btn-warning-mobile';
+        mobileBtn = `<button class="${btnClass}" data-pick="${o.pick_id}">⏳ Devam Et</button>`;
+      } else if (o.pick_status === 'active') {
+        btnClass += ' btn-warning-mobile';
+        mobileBtn = `<button class="${btnClass}" data-pick="${o.pick_id}">▶️ Devam Et</button>`;
+      } else {
+        const isFullyFulfilled = o.fulfillment_status === 'FULFILLED' || o.status === 'fulfilled';
+        if (isFullyFulfilled) {
+          // Tamamlanmış siparişler için irsaliye ve PDF butonları (mobil)
+          const hasDispatchNote = o.netsis_delivery_note_id;
+          if (hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-success-mobile';
+            mobileBtn = `<button class="${btnClass}" disabled style="margin-right:4px;">📋 İrsaliye (${hasDispatchNote})</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
+          } else if (hasDispatchNote && !o.pick_id) {
+            btnClass += ' btn-success-mobile';
+            mobileBtn = `<button class="${btnClass}" disabled>📋 İrsaliye (${hasDispatchNote})</button>`;
+          } else if (!hasDispatchNote && o.pick_id) {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}" style="margin-right:4px;">📋 İrsaliye Oluştur</button>`;
+            mobileBtn += `<button class="action-btn-mobile btn-danger-mobile" data-pick-id="${o.pick_id}">📄 PDF</button>`;
+          } else {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-dispatch="${o.id}">📋 İrsaliye Oluştur</button>`;
+          }
+        } else {
+          if (o.fulfillment_status === 'PARTIALLY_FULFILLED') {
+            btnClass += ' btn-warning-mobile';
+            mobileBtn = o.pick_id 
+              ? `<button class="${btnClass}" data-pick="${o.pick_id}">⏳ Devam Et</button>`
+              : `<button class="${btnClass}" data-pick="${o.id}">⏳ Devam Et</button>`;
+          } else {
+            btnClass += ' btn-primary-mobile';
+            mobileBtn = `<button class="${btnClass}" data-pick="${o.id}">📦 Toplamaya Başla</button>`;
+          }
+        }
+      }
+      
+      return `
+        <div class="order-card">
+          <div class="order-header">
+            <div class="order-number">#${o.order_number}</div>
+            <div class="order-status ${statusClass.replace('mobile', 'badge')}">${statusText}</div>
+          </div>
+          
+          <div class="order-info">
+            <div class="info-row">
+              <div class="info-label">Müşteri:</div>
+              <div class="info-value"><strong>${displayCustomerName}</strong></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Tarih:</div>
+              <div class="info-value">${orderDate}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Kalemler:</div>
+              <div class="info-value">${count} kalem</div>
+            </div>
+          </div>
+          
+          <div class="order-items-mobile">
+            ${itemDetails}
+          </div>
+          
+          ${mobileBtn}
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// Netsis siparişlerini göster
+function displayNetsisOrders(orders) {
+  const tbody = $('#ordTable tbody');
+  const mobileContainer = $('#mobileOrderList');
+  
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#666">Netsis siparişi bulunamadı</td></tr>';
+    if (mobileContainer) mobileContainer.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Netsis siparişi bulunamadı</div>';
+    return;
+  }
+  
+  // Desktop table
+  tbody.innerHTML = orders.map(o => {
+    const orderDate = new Date(o.sync_tarihi).toLocaleDateString('tr-TR');
+    const totalAmount = parseFloat(o.toplam_tutar || 0).toFixed(2);
+    
+    // Cari ismi öncelikli gösterim - cariIsmi varsa onu, yoksa cari_kodu göster
+    const customerDisplay = o.cariIsmi || o.cari_ismi || o.cari_kodu || 'N/A';
+    const customerDisplayShort = customerDisplay.length > 25 
+      ? customerDisplay.substring(0, 25) + '...'
+      : customerDisplay;
+    
+    return `
+      <tr>
+        <td><strong>${o.siparis_no}</strong></td>
+        <td>${customerDisplayShort}</td>
+        <td><span class="status-badge status-new">Yeni</span></td>
+        <td>-</td>
+        <td>${orderDate}</td>
+        <td>
+          <button class="action-btn" data-netsis-id="${o.id}">
+            📋 Detay
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Mobile cards
+  if (mobileContainer) {
+    mobileContainer.innerHTML = orders.map(o => {
+      const orderDate = new Date(o.sync_tarihi).toLocaleDateString('tr-TR');
+      const totalAmount = parseFloat(o.toplam_tutar || 0).toFixed(2);
+      
+      // Mobile için de cari ismi öncelikli gösterim
+      const customerDisplay = o.cariIsmi || o.cari_ismi || o.cari_kodu || 'N/A';
+      const customerDisplayMobile = customerDisplay.length > 30 
+        ? customerDisplay.substring(0, 30) + '...'
+        : customerDisplay;
+      
+      return `
+        <div class="order-card">
+          <div class="order-header">
+            <div class="order-number">#${o.siparis_no}</div>
+            <div class="order-status status-new">Yeni</div>
+          </div>
+          
+          <div class="order-info">
+            <div class="info-row">
+              <div class="info-label">Müşteri:</div>
+              <div class="info-value"><strong>${customerDisplayMobile}</strong></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Tarih:</div>
+              <div class="info-value">${orderDate}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Tutar:</div>
+              <div class="info-value">${totalAmount} ₺</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Satır Sayısı:</div>
+              <div class="info-value">${o.line_count || 0} kalem</div>
+            </div>
+          </div>
+          
+          <button class="mobile-action-btn btn-primary-mobile" data-netsis-id="${o.id}">
+            📋 Detayları Görüntüle
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// Harici siparişleri göster
+function displayExternalOrders(orders) {
+  const tbody = $('#ordTable tbody');
+  const mobileContainer = $('#mobileOrderList');
+  
+  if (orders.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:#666">Harici sipariş bulunamadı</td></tr>';
+    if (mobileContainer) mobileContainer.innerHTML = '<div style="text-align:center;padding:20px;color:#666">Harici sipariş bulunamadı</div>';
+    return;
+  }
+  
+  // Desktop table
+  tbody.innerHTML = orders.map(o => {
+    const orderDate = new Date(o.order_date).toLocaleDateString('tr-TR');
+    const totalAmount = parseFloat(o.total_amount || 0).toFixed(2);
+    const itemCount = o.items ? o.items.length : 0;
+    const itemDetails = o.items ? o.items.slice(0, 3).map(item => 
+      `• ${item.stokKodu} x${item.miktar}`
+    ).join('<br>') + (o.items.length > 3 ? '<br>...' : '') : 'Kalem yok';
+    
+    // Harici siparişler için de cari ismi öncelikli gösterim
+    const customerDisplay = o.customer_name || o.cariIsmi || o.cari_ismi || o.customer_code || 'N/A';
+    const customerDisplayShort = customerDisplay.length > 25 
+      ? customerDisplay.substring(0, 25) + '...'
+      : customerDisplay;
+    
+    return `
+      <tr>
+        <td><strong>#${o.order_number}</strong></td>
+        <td>${customerDisplayShort}</td>
+        <td><span class="status-badge status-open">Harici</span></td>
+        <td><div class="order-items">${itemCount} kalem<br>${itemDetails}</div></td>
+        <td>${orderDate}</td>
+        <td>
+          <button class="action-btn" data-external-id="${o.id}">
+            📋 Detay
+          </button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Mobile cards
+  if (mobileContainer) {
+    mobileContainer.innerHTML = orders.map(o => {
+      const orderDate = new Date(o.order_date).toLocaleDateString('tr-TR');
+      const totalAmount = parseFloat(o.total_amount || 0).toFixed(2);
+      const itemCount = o.items ? o.items.length : 0;
+      
+      // Mobile harici siparişler için de cari ismi öncelikli gösterim
+      const customerDisplay = o.customer_name || o.cariIsmi || o.cari_ismi || o.customer_code || 'N/A';
+      const customerDisplayMobile = customerDisplay.length > 30 
+        ? customerDisplay.substring(0, 30) + '...'
+        : customerDisplay;
+      
+      return `
+        <div class="order-card">
+          <div class="order-header">
+            <div class="order-number">#${o.order_number}</div>
+            <div class="order-status status-open">Harici</div>
+          </div>
+          
+          <div class="order-info">
+            <div class="info-row">
+              <div class="info-label">Müşteri:</div>
+              <div class="info-value"><strong>${customerDisplayMobile}</strong></div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Tarih:</div>
+              <div class="info-value">${orderDate}</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Tutar:</div>
+              <div class="info-value">${totalAmount} ₺</div>
+            </div>
+            <div class="info-row">
+              <div class="info-label">Kalemler:</div>
+              <div class="info-value">${itemCount} kalem</div>
+            </div>
+          </div>
+          
+          <button class="mobile-action-btn btn-primary-mobile" data-external-id="${o.id}">
+            📋 Detayları Görüntüle
+          </button>
+        </div>
+      `;
+    }).join('');
+  }
+}
+
+// Event listeners
+document.body.addEventListener('click', async (e) => {
+  
+  // Sekme değiştirme
+  if (e.target.classList.contains('tab-btn')) {
+    $$('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    e.target.classList.add('active');
+    currentTab = e.target.dataset.tab;
+    filterAndDisplayOrders();
+  }
+  
+  
+  // Backend Netsis REST API İrsaliye oluşturma - YENİ MANTIK
+  const dispatchValue = e.target.getAttribute('data-dispatch');
+  if (dispatchValue) {
+    e.target.disabled = true;
+    const originalText = e.target.textContent;
+    e.target.textContent = '🚀 İrsaliye oluşturuluyor...';
+    
+    try {
+      console.log('🚀 Creating dispatch via backend for order:', dispatchValue);
+      
+      const response = await fetch(`/api/orders/${dispatchValue}/convert-to-dispatch`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        alert(`✅ İrsaliye başarıyla oluşturuldu!\n\n` +
+              `📋 İrsaliye No: ${result.dispatch_number || result.delivery_note_id}\n` +
+              `🏢 Netsis ID: ${result.delivery_note_id}\n` +
+              `📦 Sipariş No: ${result.order_number}`);
+        
+        // Sayfayı yenile
+        await loadOrders();
+      } else {
+        throw new Error(result.error || result.message || 'İrsaliye oluşturulamadı');
+      }
+      
+    } catch (error) {
+      console.error('❌ Backend dispatch creation error:', error);
+      
+      let errorMessage = '❌ İrsaliye oluşturma hatası:\n\n';
+      
+      if (error.message.includes('token') || error.message.includes('kimlik')) {
+        errorMessage += '🔐 Netsis kimlik doğrulaması başarısız.\n';
+        errorMessage += 'Netsis sunucusuna erişim sağlanamadı veya kullanıcı bilgileri hatalı.';
+      } else if (error.message.includes('cari') || error.message.includes('customer') || error.message.includes('Müşteri')) {
+        errorMessage += '👤 Müşteri kaydı bulunamadı.\n';
+        errorMessage += 'Bu müşteri Netsis\'te tanımlı değil.';
+      } else if (error.message.includes('stok') || error.message.includes('product') || error.message.includes('Ürün')) {
+        errorMessage += '📦 Ürün kaydı bulunamadı.\n';
+        errorMessage += 'Siparişteki bazı ürünler Netsis\'te tanımlı değil.';
+      } else {
+        errorMessage += error.message;
+      }
+      
+      alert(errorMessage);
+    } finally {
+      e.target.disabled = false;
+      e.target.textContent = originalText;
+    }
+  }
+  
+  // PDF İrsaliye indirme
+  const pdfPickId = e.target.getAttribute('data-pick-id');
+  if (pdfPickId) {
+    try {
+      // PDF'i yeni sekmede aç
+      const pdfUrl = `/api/picks/${pdfPickId}/delivery-note.pdf`;
+      window.open(pdfUrl, '_blank');
+    } catch (error) {
+      console.error('PDF indirme hatası:', error);
+      alert('PDF indirilemedi: ' + error.message);
+    }
+  }
+  
+  // Toplama başlatma
+  const pickValue = e.target.getAttribute('data-pick');
+  if (pickValue) {
+    e.target.disabled = true;
+    const originalText = e.target.textContent;
+    e.target.textContent = 'Yükleniyor...';
+    
+    try {
+      // Eğer buton partial, active ya da partial-new ise
+      if (e.target.classList.contains('btn-partial')) {
+        // Mevcut pick ID var - direkt devam et
+        console.log('Continuing existing pick:', pickValue);
+        location.href = '/pick.html?pick=' + pickValue;
+      } else if (e.target.classList.contains('btn-active')) {
+        // Aktif pick var - direkt devam et
+        console.log('Continuing active pick:', pickValue);
+        location.href = '/pick.html?pick=' + pickValue;
+      } else if (e.target.classList.contains('btn-partial-new')) {
+        // Kısmen karşılanmış ama pick yok - yeni pick oluştur
+        console.log('Creating new pick for partially fulfilled order:', pickValue);
+        const r = await API.createPick(parseInt(pickValue, 10));
+        if (r.error) { 
+          alert('Pick oluşturma hatası: ' + r.error); 
+        } else { 
+          console.log('Pick oluşturuldu:', r);
+          location.href = '/pick.html?pick=' + r.id; 
+        }
+      } else {
+        // Yeni pick oluştur
+        const r = await API.createPick(parseInt(pickValue, 10));
+        if (r.error) { 
+          alert('Pick oluşturma hatası: ' + r.error); 
+        } else { 
+          console.log('Pick oluşturuldu:', r);
+          location.href = '/pick.html?pick=' + r.id; 
+        }
+      }
+    } finally {
+      e.target.disabled = false;
+      e.target.textContent = originalText;
+    }
+  }
+  
+  // External pick başlatma (Harici Topla butonu)
+  const externalPickValue = e.target.getAttribute('data-external-pick');
+  if (externalPickValue) {
+    console.log('Starting external pick for order:', externalPickValue);
+    // Direkt pick sayfasına yönlendir - external pick için özel parametre
+    location.href = '/pick.html?external=' + externalPickValue;
+  }
+});
+
+// Arama input
+$('#searchInput').addEventListener('input', (e) => {
+  searchTerm = e.target.value;
+  filterAndDisplayOrders();
+});
+
+// Durum filtresi
+$('#statusFilter').addEventListener('change', (e) => {
+  statusFilter = e.target.value;
+  filterAndDisplayOrders();
+});
+
+// External API sync fonksiyonu
+async function syncExternalOrders() {
+  try {
+    console.log('🔄 Checking external API for new orders...');
+    const response = await fetch('/api/sync/external-orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      if (result.imported > 0) {
+        console.log(`✅ ${result.imported} new orders imported from external API`);
+        // Yeni siparişler varsa liste yenile
+        await loadOrders();
+        
+        // Bildirim göster
+        const syncBadge = document.getElementById('syncOrdersOut');
+        if (syncBadge) {
+          syncBadge.textContent = `${result.imported} yeni sipariş`;
+          syncBadge.style.background = '#28a745';
+          syncBadge.style.color = 'white';
+          syncBadge.style.padding = '4px 8px';
+          syncBadge.style.borderRadius = '12px';
+          syncBadge.style.fontSize = '12px';
+          
+          // 5 saniye sonra bildirim kaybolsun
+          setTimeout(() => {
+            syncBadge.textContent = '';
+            syncBadge.style.background = '';
+            syncBadge.style.color = '';
+            syncBadge.style.padding = '';
+            syncBadge.style.borderRadius = '';
+          }, 5000);
+        }
+      } else {
+        console.log('ℹ️ No new orders found in external API');
+      }
+    }
+  } catch (error) {
+    console.error('External sync error:', error);
+  }
+}
+
+// Load orders
+await loadOrders();
+
+// External API'den yeni siparişleri kontrol et - sayfa yüklendiğinde
+await syncExternalOrders();
+
+// Check for refresh flag from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('refresh') === 'true') {
+  console.log('🔄 Refresh flag detected - force reloading orders...');
+  // Remove refresh parameter from URL
+  const newUrl = window.location.pathname;
+  window.history.replaceState({}, document.title, newUrl);
+  
+  // Force reload orders after a short delay to ensure any backend processing is complete
+  setTimeout(() => {
+    console.log('🔄 Force reloading orders after completion...');
+    loadOrders();
+  }, 1000);
+}
+
+// Otomatik yenileme - her 30 saniyede bir (WMS siparişleri + External sync)
+setInterval(async () => {
+  console.log('🔄 Auto-refreshing orders and checking external API...');
+  await syncExternalOrders(); // Önce external API kontrol et
+  await loadOrders(); // Sonra WMS siparişlerini yenile
+}, 30000);
+
+// Sayfa odaklandığında yenile (hem WMS hem external)
+document.addEventListener('visibilitychange', async () => {
+  if (!document.hidden) {
+    console.log('👁️ Page became visible - refreshing orders and checking external API');
+    await syncExternalOrders();
+    await loadOrders();
+  }
+});
+
+// =====================================================
+// NETSIS REST API ENTEGRASYON FONKSİYONLARI - YENİ
+// =====================================================
+
+// Netsis konfigürasyon
+const NETSIS_CONFIG = {
+  baseURL: 'http://93.89.67.130:2626',
+  username: 'NETSIS',
+  password: '141',
+  company: 'ARVESAVRUPA',
+  branch: 0,
+  dbUser: 'TEMELSET',
+  dbPassword: 'TEMELSET1',
+  dbType: 1 // vtMSSQL
+};
+
+let netsisToken = null;
+let tokenExpiry = null;
+
+/**
+ * 1. Netsis'ten OAuth2 token alır
+ */
+async function getNetsisToken() {
+  // Eğer mevcut token var ve süresi dolmamışsa, onu kullan
+  if (netsisToken && tokenExpiry && new Date() < tokenExpiry) {
+    console.log('🔐 Using existing Netsis token');
+    return netsisToken;
+  }
+  
+  try {
+    console.log('🔐 Getting new Netsis token...');
+    
+    const tokenEndpoints = [
+      '/api/v2/token',
+      '/token', 
+      '/api/token'
+    ];
+    
+    for (const endpoint of tokenEndpoints) {
+      try {
+        const url = NETSIS_CONFIG.baseURL + endpoint;
+        console.log(`🔐 Trying token endpoint: ${url}`);
+        
+        const requestData = new URLSearchParams();
+        requestData.append('grant_type', 'password');
+        requestData.append('username', NETSIS_CONFIG.username);
+        requestData.append('password', NETSIS_CONFIG.password);
+        requestData.append('branchcode', NETSIS_CONFIG.branch);
+        requestData.append('dbname', NETSIS_CONFIG.company);
+        requestData.append('dbuser', NETSIS_CONFIG.dbUser);
+        requestData.append('dbpassword', NETSIS_CONFIG.dbPassword);
+        requestData.append('dbtype', NETSIS_CONFIG.dbType);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Accept': 'application/json',
+            'User-Agent': 'WMS-Netsis-Integration/1.0',
+            'Cache-Control': 'no-cache'
+          },
+          body: requestData.toString(),
+          timeout: 30000
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.access_token) {
+          console.log('✅ Netsis token başarıyla alındı');
+          netsisToken = data.access_token;
+          
+          // Token süresini hesapla (varsayılan 1 saat)
+          const expiresIn = data.expires_in || 3600;
+          tokenExpiry = new Date(Date.now() + (expiresIn * 1000));
+          
+          return netsisToken;
+        } else {
+          console.warn(`⚠️ Token endpoint failed: ${endpoint}`, data);
+          if (data.error_description) {
+            throw new Error(`Netsis hatası: ${data.error_description}`);
+          }
+        }
+      } catch (endpointError) {
+        console.warn(`⚠️ Token endpoint error: ${endpoint}`, endpointError.message);
+      }
+    }
+    
+    throw new Error('Tüm Netsis token endpoint\'leri başarısız');
+    
+  } catch (error) {
+    console.error('❌ Netsis token alma hatası:', error);
+    netsisToken = null;
+    tokenExpiry = null;
+    throw error;
+  }
+}
+
+/**
+ * 2. Sipariş verisini Netsis irsaliye formatına çevirir
+ */
+function convertOrderToDispatch(orderData) {
+  console.log('🔄 Converting order to dispatch format:', orderData);
+  
+  // Sipariş kalemlerini kontrol et
+  if (!orderData.items || orderData.items.length === 0) {
+    throw new Error('Sipariş kalemleri bulunamadı');
+  }
+  
+  // Müşteri kodu kontrol et
+  const customerCode = orderData.cariKodu || orderData.customer_code || orderData.customer_name;
+  if (!customerCode) {
+    throw new Error('Müşteri kodu bulunamadı');
+  }
+  
+  // Toplam tutarları hesapla
+  let totalNet = 0;
+  let totalVat = 0;
+  
+  // Satır kalemlerini dönüştür
+  const lines = orderData.items.map((item, index) => {
+    const quantity = parseFloat(item.quantity || item.miktar || 1);
+    const unitPrice = parseFloat(item.birimFiyat || item.unit_price || 0);
+    const vatRate = parseFloat(item.kdvOrani || item.vat_rate || 0);
+    
+    const lineNet = quantity * unitPrice;
+    const lineVat = lineNet * (vatRate / 100);
+    
+    totalNet += lineNet;
+    totalVat += lineVat;
+    
+    return {
+      STOCK_CODE: item.stokKodu || item.product_sku || item.sku,
+      QUANTITY: quantity,
+      UNIT_CODE: item.birim || item.unit || 'ADET',
+      PRICE: unitPrice,
+      VAT_RATE: vatRate,
+      WAREHOUSE: item.depoKodu || item.warehouse || 2,
+      ORDER_REFERENCE: orderData.siparisNo || orderData.order_number,
+      LINE_NO: index + 1,
+      DESCRIPTION: item.product_name || item.productName || item.stokKodu
+    };
+  });
+  
+  const totalGross = totalNet + totalVat;
+  
+  // Ana irsaliye verisi
+  const dispatchData = {
+    FTIRSIP: 3, // Satış İrsaliyesi
+    FICHE_NO: '', // Boş bırakarak otomatik numara al
+    DATE: new Date().toISOString().split('T')[0], // Bugünün tarihi (YYYY-MM-DD)
+    ARP_CODE: customerCode.toString().trim(),
+    DOC_NUMBER: `WMS-${orderData.order_number}`, // WMS referansı
+    TOTAL_GROSS: orderData.kdvDahilMi ? totalGross : totalNet,
+    TOTAL_NET: totalNet,
+    VAT_TOTAL: totalVat,
+    NOTES: `WMS Sipariş: ${orderData.order_number}`,
+    BRANCH_CODE: NETSIS_CONFIG.branch,
+    LINES: lines
+  };
+  
+  console.log('✅ Dispatch data converted:', dispatchData);
+  return dispatchData;
+}
+
+/**
+ * 3. Netsis API'ye irsaliye gönderir
+ */
+async function createNetsisDispatch(dispatchData, token) {
+  console.log('📤 Sending dispatch to Netsis:', dispatchData);
+  
+  try {
+    const dispatchEndpoints = [
+      '/api/v2/Dispatches',
+      '/api/v2/Invoices', 
+      '/api/v2/SalesDispatches',
+      '/api/v2/Faturas'
+    ];
+    
+    for (const endpoint of dispatchEndpoints) {
+      try {
+        const url = NETSIS_CONFIG.baseURL + endpoint;
+        console.log(`📤 Trying dispatch endpoint: ${url}`);
+        
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+            'User-Agent': 'WMS-Netsis-Integration/1.0'
+          },
+          body: JSON.stringify(dispatchData),
+          timeout: 60000
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok && result) {
+          console.log('✅ Netsis dispatch created successfully:', result);
+          
+          return {
+            success: true,
+            dispatchId: result.ID || result.id || result.FICHE_NO || result.fiche_no,
+            dispatchNumber: result.FICHE_NO || result.fiche_no || result.NUMBER || result.number,
+            result: result
+          };
+        } else {
+          console.warn(`⚠️ Dispatch endpoint failed: ${endpoint}`, result);
+          
+          if (result && result.error) {
+            throw new Error(`Netsis hatası: ${result.error}`);
+          }
+        }
+      } catch (endpointError) {
+        console.warn(`⚠️ Dispatch endpoint error: ${endpoint}`, endpointError.message);
+      }
+    }
+    
+    throw new Error('Tüm Netsis dispatch endpoint\'leri başarısız');
+    
+  } catch (error) {
+    console.error('❌ Netsis dispatch creation error:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+}
+
+/**
+ * 4. Lokal veritabanına irsaliye ID\'sini kaydeder
+ */
+async function updateOrderWithDispatchNote(orderId, dispatchId) {
+  try {
+    console.log('📋 Updating order with dispatch note:', { orderId, dispatchId });
+    
+    const response = await fetch(`/api/orders/${orderId}`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        netsis_delivery_note_id: dispatchId
+      })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Local veritabanı güncellenemedi');
+    }
+    
+    console.log('✅ Order updated with dispatch note');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Error updating order with dispatch note:', error);
+    throw error;
+  }
+}
+
+// Mobile navigation toggle
+document.getElementById('mobileNavToggle').addEventListener('click', () => {
+  const menu = document.getElementById('mobileNavMenu');
+  menu.classList.toggle('show');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('mobileNav');
+  const menu = document.getElementById('mobileNavMenu');
+  if (!nav.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,1376 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+  <title>Teslimat Teyidi</title>
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+  <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <script src="/assets/js/smart-barcode-scanner.js"></script>
+  <style>
+    /* Mobile optimizations for delivery verify page */
+    @media (max-width: 768px) {
+      .desktop-only {
+        display: none !important;
+      }
+      
+      .mobile-only {
+        display: block !important;
+      }
+      
+      .mobile-item-card {
+        background: rgba(31,42,68,0.3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+      
+      .mobile-item-card:hover {
+        background: rgba(31,42,68,0.5);
+        border-color: var(--accent);
+      }
+      
+      .mobile-item-card.completed {
+        border-color: var(--success);
+        background: rgba(34, 197, 94, 0.1);
+      }
+      
+      .mobile-item-card.partial {
+        border-color: var(--warning);
+        background: rgba(251, 191, 36, 0.1);
+      }
+      
+      .mobile-item-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+      
+      .mobile-item-sku {
+        font-weight: bold;
+        color: var(--accent);
+      }
+      
+      .mobile-item-status {
+        font-size: 18px;
+      }
+      
+      .mobile-item-name {
+        font-weight: 500;
+        margin-bottom: 8px;
+      }
+      
+      .mobile-item-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 8px;
+        font-size: 12px;
+      }
+      
+      .mobile-item-detail {
+        text-align: center;
+        padding: 4px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 4px;
+      }
+      
+      .mobile-item-detail-label {
+        color: var(--muted);
+        display: block;
+        margin-bottom: 2px;
+      }
+      
+      .mobile-item-detail-value {
+        font-weight: bold;
+        color: var(--fg);
+      }
+      
+      .signature-canvas {
+        width: 100%;
+        height: 200px;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        cursor: crosshair;
+      }
+      
+      .signature-controls {
+        display: flex;
+        gap: 8px;
+        margin: 8px 0;
+      }
+      
+      .signature-controls button {
+        flex: 1;
+        padding: 8px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+      
+      .btn-clear {
+        background: var(--muted);
+        color: var(--fg);
+      }
+      
+      .btn-save {
+        background: var(--success);
+        color: white;
+      }
+    }
+    
+    @media (min-width: 769px) {
+      .mobile-only {
+        display: none !important;
+      }
+      
+      .desktop-only {
+        display: table !important;
+      }
+      
+      .signature-canvas {
+        width: 400px;
+        height: 200px;
+        border: 2px solid var(--border);
+        border-radius: 8px;
+        background: white;
+        cursor: crosshair;
+      }
+    }
+    
+    /* Color badge styles */
+    .color-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: bold;
+      color: white;
+      text-shadow: 0 1px 1px rgba(0,0,0,0.3);
+      margin: 2px;
+      min-width: 45px;
+      text-align: center;
+    }
+    
+    /* Progress bar styles */
+    .progress-container {
+      margin: 16px 0;
+      background: var(--hover);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 4px;
+      overflow: hidden;
+      margin: 8px 0;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: var(--success);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+      width: 0%;
+    }
+    
+    .progress-text {
+      text-align: center;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--fg);
+    }
+    
+    /* Barcode input styles */
+    .barcode-input {
+      position: fixed;
+      top: -100px;
+      left: -100px;
+      opacity: 0;
+    }
+    
+    /* Status indicators */
+    .status-pending { color: #6b7280; }
+    .status-verified { color: #22c55e; }
+    .status-missing { color: #ef4444; }
+    .status-extra { color: #f59e0b; }
+    
+    /* Complete delivery section */
+    .complete-section {
+      margin-top: 24px;
+      padding: 20px;
+      background: var(--hover);
+      border-radius: 8px;
+      border: 2px solid var(--border);
+    }
+    
+    .complete-section.ready {
+      border-color: var(--success);
+      background: rgba(34, 197, 94, 0.1);
+    }
+    
+    .signature-section {
+      margin: 16px 0;
+    }
+    
+    .signature-label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      display: block;
+    }
+    
+    .complete-btn {
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      margin-top: 16px;
+    }
+    
+    .complete-btn:disabled {
+      background: var(--muted);
+      color: var(--fg);
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    .complete-btn:not(:disabled) {
+      background: var(--success);
+      color: white;
+    }
+    
+    .complete-btn:not(:disabled):hover {
+      background: #16a34a;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <h1>WMS Yönetim Sistemi</h1>
+    <span class="header-subtitle">Teslimat Teyidi</span>
+  </div>
+  <div class="header-actions">
+    <a href="/delivery-confirmation.html" class="home-btn">
+      <span class="home-icon">⬅️</span>
+      <span class="home-text">Teslimat Listesi</span>
+    </a>
+  </div>
+</header>
+
+<main class="grid" style="max-width:1200px;margin:auto;padding:16px">
+  <!-- Order Info Section -->
+  <section class="card">
+    <h2>Sipariş Bilgileri</h2>
+    <div id="orderInfo">
+      <p>Sipariş yükleniyor...</p>
+    </div>
+    
+    <!-- Progress Bar -->
+    <div class="progress-container">
+      <div class="progress-text">
+        İlerleme: <span id="progressText">0/0</span>
+      </div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Barcode Scanner Section -->
+  <section class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <h2>Paket Tarayıcısı</h2>
+      <div style="display:flex;gap:8px;">
+        <div style="background:#22c55e;color:white;padding:8px 16px;border-radius:6px;display:flex;align-items:center;gap:8px;font-weight:bold;">
+          <span>📱</span>
+          <span>Teslimat Teyidi</span>
+        </div>
+      </div>
+    </div>
+    <div class="flex" style="margin-top:16px;gap:12px;">
+      <input id="deliveryBarcodeInput" placeholder="Paket Barkodunu Okutun" class="scanner-input" style="flex:1;font-size:20px;padding:16px;text-align:center;background:#000;color:#00ff00;border:2px solid #333;" />
+      <button id="addDeliveryItem" class="btn-large" style="background:#22c55e;color:white;min-width:120px;">Teslim Et</button>
+    </div>
+    <div class="grid" style="grid-template-columns: 1fr 1fr;margin-top:12px;">
+      <div><strong>Son Taranan:</strong> <span id="lastScanned">-</span></div>
+      <div style="text-align:right;color:var(--muted);font-size:14px;">Zebra Terminal Uyumlu</div>
+    </div>
+  </section>
+
+  <!-- Items Section -->
+  <section class="card">
+    <h2>Teslimat Kalemleri</h2>
+    <p class="text-muted">Araçtan çıkarılan her paketi tarayarak müşteriye teslim edin. Paket detaylarını görmek için satıra tıklayın.</p>
+    
+    <!-- Desktop Table -->
+    <div class="table-container desktop-only">
+      <table id="itemsTable">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>Ürün</th>
+            <th>Renk</th>
+            <th>Miktar</th>
+            <th>Paketler</th>
+            <th>Teyit</th>
+            <th>Durum</th>
+          </tr>
+        </thead>
+        <tbody id="itemsTableBody"></tbody>
+      </table>
+    </div>
+    
+    <!-- Mobile Cards -->
+    <div class="mobile-only">
+      <div id="mobileItemsList"></div>
+    </div>
+  </section>
+
+  <!-- Complete Delivery Section -->
+  <section class="card complete-section" id="completeSection">
+    <h2>Teslimatı Tamamla</h2>
+    
+    <div class="signature-section">
+      <label class="signature-label">Müşteri İmzası:</label>
+      <canvas id="signatureCanvas" class="signature-canvas"></canvas>
+      <div class="signature-controls">
+        <button type="button" id="clearSignature" class="btn-clear">Temizle</button>
+        <button type="button" id="saveSignature" class="btn-save">İmzayı Kaydet</button>
+      </div>
+    </div>
+    
+    <div style="margin: 16px 0;">
+      <label for="deliveryNotes" style="display:block;font-weight:bold;margin-bottom:8px;">Teslimat Notları:</label>
+      <textarea id="deliveryNotes" rows="3" style="width:100%;padding:8px;border-radius:4px;border:1px solid var(--border);background:var(--bg);color:var(--fg);" placeholder="Teslimat ile ilgili notlarınızı yazın..."></textarea>
+    </div>
+    
+    <button type="button" id="completeDelivery" class="complete-btn" disabled>
+      🚚 Teslimatı Tamamla
+    </button>
+  </section>
+</main>
+
+<script type="module">
+const $ = (s) => document.querySelector(s);
+const $$ = (s) => document.querySelectorAll(s);
+
+// Get order ID from URL
+const urlParams = new URLSearchParams(window.location.search);
+const orderId = urlParams.get('order');
+
+if (!orderId) {
+  alert('Sipariş ID bulunamadı!');
+  location.href = '/delivery-confirmation.html';
+}
+
+let orderData = {};
+let orderItems = [];
+let deliveryScans = {};
+let signatureData = null;
+
+const API = {
+  getOrder: (id) => fetch(`/api/orders/${id}`).then(r => r.json()),
+  createDelivery: (orderId) => fetch('/api/deliveries', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ order_id: orderId })
+  }).then(r => r.json()),
+  addDeliveryScan: (deliveryId, data) => fetch(`/api/deliveries/${deliveryId}/scan`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json()),
+  completeDelivery: (deliveryId, data) => fetch(`/api/deliveries/${deliveryId}/complete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data)
+  }).then(r => r.json())
+};
+
+// Load order data
+async function loadOrder() {
+  try {
+    const order = await API.getOrder(orderId);
+    orderData = order;
+    orderItems = order.items || [];
+    
+    displayOrderInfo();
+    displayItems();
+    setupBarcodeScanning();
+    updateProgress();
+    
+    // Create delivery record
+    const delivery = await API.createDelivery(orderId);
+    orderData.deliveryId = delivery.id;
+    
+  } catch (error) {
+    console.error('Error loading order:', error);
+    alert('Sipariş yüklenirken hata oluştu: ' + error.message);
+  }
+}
+
+// Display order information
+function displayOrderInfo() {
+  const customerName = orderData.cariIsmi || orderData.customer_name || 'Bilinmeyen Müşteri';
+  const orderDate = new Date(orderData.created_at).toLocaleDateString('tr-TR');
+  
+  $('#orderInfo').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div>
+        <strong>Sipariş No:</strong> #${orderData.order_number}<br>
+        <strong>Müşteri:</strong> ${customerName}<br>
+        <strong>Tarih:</strong> ${orderDate}
+      </div>
+      <div>
+        <strong>Durum:</strong> ${orderData.fulfillment_status}<br>
+        <strong>Toplam Kalem:</strong> ${orderItems.length}<br>
+        <strong>Teslimat:</strong> <span style="color:var(--warning);">Bekliyor</span>
+      </div>
+    </div>
+  `;
+}
+
+// Display items in table/cards with package details
+function displayItems() {
+  const tbody = $('#itemsTableBody');
+  const mobileList = $('#mobileItemsList');
+  
+  if (orderItems.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;">Sipariş kalemi bulunamadı</td></tr>';
+    mobileList.innerHTML = '<p style="text-align:center;color:var(--muted);">Sipariş kalemi bulunamadı</p>';
+    return;
+  }
+  
+  // Desktop table
+  tbody.innerHTML = orderItems.map((item, index) => {
+    const status = getItemStatus(item);
+    const statusIcon = getStatusIcon(status);
+    const statusClass = `status-${status}`;
+    const totalDelivered = calculateTotalDelivered(item);
+    
+    let colorBadge = '';
+    if (item.product_color) {
+      colorBadge = `<span class="color-badge" style="background:#666;">${item.product_color}</span>`;
+    }
+    
+    // Package info summary with progress
+    let packageInfo = 'Paket yok';
+    let packageProgressBar = '';
+    if (item.packages && item.packages.length > 0) {
+      const totalPackages = item.packages.reduce((sum, pkg) => {
+        const deliveryKey = `${item.id}_${pkg.id}`;
+        const delivered = deliveryScans[deliveryKey] || 0;
+        return sum + delivered;
+      }, 0);
+      const requiredPackages = item.packages.length; // Each package needs to be scanned once
+      
+      const progressPercent = requiredPackages > 0 ? (totalPackages / requiredPackages) * 100 : 0;
+      packageInfo = `${totalPackages}/${requiredPackages} paket`;
+      
+      packageProgressBar = `
+        <div style="width:100%;height:4px;background:#333;border-radius:2px;margin-top:4px;overflow:hidden;">
+          <div style="width:${progressPercent}%;height:100%;background:${progressPercent === 100 ? '#22c55e' : '#f59e0b'};transition:width 0.5s ease-in-out;"></div>
+        </div>
+      `;
+    }
+    
+    return `
+      <tr data-item-id="${item.id}" class="item-row ${status}" onclick="showItemPackages(${item.id})" style="cursor:pointer;">
+        <td><strong>${item.sku}</strong></td>
+        <td>${item.product_name || item.sku}</td>
+        <td>${colorBadge}</td>
+        <td>
+          <span class="quantity-display">
+            <span id="quantity-delivered-${item.id}">${item.packages && item.packages.length > 0 ? (totalDelivered >= item.packages.length ? 1 : 0) : totalDelivered}</span>/<span class="total">${item.quantity}</span>
+          </span>
+        </td>
+        <td><small><strong><span id="package-progress-${item.id}">${packageInfo}</span></strong>${packageProgressBar}</small></td>
+        <td>
+          <button class="action-btn scan-btn" data-item-id="${item.id}" onclick="event.stopPropagation();focusOnItem(${item.id})">
+            📱 Tara
+          </button>
+        </td>
+        <td>
+          <span class="${statusClass}">${statusIcon}</span>
+        </td>
+      </tr>
+    `;
+  }).join('');
+  
+  // Mobile cards with package info
+  mobileList.innerHTML = orderItems.map((item, index) => {
+    const status = getItemStatus(item);
+    const statusIcon = getStatusIcon(status);
+    const totalDelivered = calculateTotalDelivered(item);
+    const mainQuantityDelivered = item.packages && item.packages.length > 0 
+      ? (totalDelivered >= item.packages.length ? 1 : 0) 
+      : totalDelivered;
+    const mainQuantityRemaining = Math.max(0, item.quantity - mainQuantityDelivered);
+    
+    let colorInfo = '';
+    if (item.product_color) {
+      colorInfo = ` (${item.product_color})`;
+    }
+    
+    // Package summary for mobile with progress
+    let packageSummary = 'Paket yok';
+    let mobileProgressBar = '';
+    if (item.packages && item.packages.length > 0) {
+      const progressPercent = item.packages.length > 0 ? (totalDelivered / item.packages.length) * 100 : 0;
+      packageSummary = `${totalDelivered}/${item.packages.length}`;
+      
+      mobileProgressBar = `
+        <div style="width:100%;height:3px;background:#333;border-radius:2px;margin-top:2px;overflow:hidden;">
+          <div style="width:${progressPercent}%;height:100%;background:${progressPercent === 100 ? '#22c55e' : '#f59e0b'};transition:width 0.5s ease-in-out;"></div>
+        </div>
+      `;
+    }
+    
+    return `
+      <div class="mobile-item-card ${status}" data-item-id="${item.id}" onclick="showItemPackages(${item.id})">
+        <div class="mobile-item-header">
+          <div class="mobile-item-sku">${item.sku}</div>
+          <div class="mobile-item-status">${statusIcon}</div>
+        </div>
+        <div class="mobile-item-name">${item.product_name || item.sku}${colorInfo}</div>
+        <div class="mobile-item-details">
+          <div class="mobile-item-detail">
+            <span class="mobile-item-detail-label">Gerekli</span>
+            <span class="mobile-item-detail-value">${item.quantity}</span>
+          </div>
+          <div class="mobile-item-detail">
+            <span class="mobile-item-detail-label">Teslim</span>
+            <span class="mobile-item-detail-value" id="mobile-quantity-delivered-${item.id}">${mainQuantityDelivered}</span>
+          </div>
+          <div class="mobile-item-detail">
+            <span class="mobile-item-detail-label">Kalan</span>
+            <span class="mobile-item-detail-value" id="mobile-quantity-remaining-${item.id}">${mainQuantityRemaining}</span>
+          </div>
+          <div class="mobile-item-detail">
+            <span class="mobile-item-detail-label">Paketler</span>
+            <span class="mobile-item-detail-value" id="mobile-package-progress-${item.id}">${packageSummary}${mobileProgressBar}</span>
+          </div>
+        </div>
+        <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);">
+          <button class="action-btn scan-btn" onclick="event.stopPropagation();focusOnItem(${item.id})" style="width:100%;">
+            📱 Paket Tara
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// Get item delivery status
+function getItemStatus(item) {
+  const totalDelivered = calculateTotalDelivered(item);
+  
+  if (totalDelivered === 0) return 'pending';
+  
+  // For package-based items, check against package count
+  // For simple items, check against quantity
+  let requiredCount;
+  if (item.packages && item.packages.length > 0) {
+    requiredCount = item.packages.length;
+  } else {
+    requiredCount = item.quantity;
+  }
+  
+  if (totalDelivered >= requiredCount) return 'verified';
+  if (totalDelivered < requiredCount) return 'partial';
+  
+  return 'pending';
+}
+
+// Get status icon
+function getStatusIcon(status) {
+  const icons = {
+    pending: '⏳',
+    verified: '✅',
+    partial: '⚠️',
+    missing: '❌',
+    extra: '🔺'
+  };
+  return icons[status] || '⏳';
+}
+
+// Focus on specific item for scanning
+function focusOnItem(itemId) {
+  // Highlight the item
+  $$('.item-row').forEach(row => row.classList.remove('highlight'));
+  $$('.mobile-item-card').forEach(card => card.classList.remove('highlight'));
+  
+  const desktopRow = $(`tr[data-item-id="${itemId}"]`);
+  const mobileCard = $(`.mobile-item-card[data-item-id="${itemId}"]`);
+  
+  if (desktopRow) desktopRow.classList.add('highlight');
+  if (mobileCard) mobileCard.classList.add('highlight');
+  
+  // Focus barcode input
+  $('#deliveryBarcodeInput').focus();
+  
+  // Store current item
+  window.currentItemId = itemId;
+}
+
+// Setup barcode scanning with SmartBarcodeScanner
+function setupBarcodeScanning() {
+  const deliveryInput = $('#deliveryBarcodeInput');
+  const addButton = $('#addDeliveryItem');
+  
+  // Initialize SmartBarcodeScanner
+  const deliveryScanner = window.SmartBarcodeScanner.initializeInput(deliveryInput, {
+    placeholder: 'Paket Barkodunu Okutun',
+    preventMobileKeyboard: false,
+    enableManualMode: true,
+    autoFocus: true,
+    minLength: 6,
+    maxLength: 50,
+    debug: false,
+    onScan: async (barcode, isFromScanner, input) => {
+      console.log(`📱 Teslimat barkodu tarandı: ${barcode} (${isFromScanner ? 'Scanner' : 'Manuel'})`);
+      await processScan(barcode);
+    },
+    onError: (error, barcode, input) => {
+      console.error('Teslimat barkod hatası:', error);
+      showFeedback(`❌ Barkod hatası: ${error.message}`, 'error');
+    }
+  });
+  
+  // Button click handler for manual processing
+  addButton.addEventListener('click', async () => {
+    const barcode = deliveryInput.value.trim();
+    if (barcode.length >= 6) {
+      await processScan(barcode);
+    }
+  });
+  
+  // Auto-focus and re-focus system
+  deliveryScanner.focus();
+  setInterval(() => {
+    if (document.activeElement !== deliveryInput && 
+        !document.querySelector('.modal-content') && 
+        !document.activeElement.matches('button, .complete-btn, .action-btn')) {
+      deliveryScanner.focus();
+    }
+  }, 100);
+}
+
+// Process barcode scan for package-based delivery verification
+async function processScan(barcode) {
+  console.log('Processing delivery scan:', barcode);
+  
+  // Find matching package in order items
+  let matchingItem = null;
+  let matchingPackage = null;
+  
+  for (const item of orderItems) {
+    if (item.packages && item.packages.length > 0) {
+      const pkg = item.packages.find(p => p.barcode === barcode || p.package_number === barcode);
+      if (pkg) {
+        matchingItem = item;
+        matchingPackage = pkg;
+        break;
+      }
+    }
+    // Also check main product barcode
+    if (item.sku === barcode || item.main_barcode === barcode) {
+      matchingItem = item;
+      break;
+    }
+  }
+  
+  if (!matchingItem) {
+    showFeedback(`❌ Bu barkod teslimat kalemlerinde bulunamadı: ${barcode}`, 'error');
+    $('#lastScanned').textContent = `❌ ${barcode} (Bulunamadı)`;
+    $('#lastScanned').style.color = '#ef4444';
+    return;
+  }
+  
+  // If we found a specific package, process package delivery
+  if (matchingPackage) {
+    await processPackageDelivery(matchingItem, matchingPackage, barcode);
+  } else {
+    // Generic product scan - show package selection if multiple packages
+    if (matchingItem.packages && matchingItem.packages.length > 1) {
+      showPackageSelection(matchingItem, barcode);
+    } else if (matchingItem.packages && matchingItem.packages.length === 1) {
+      await processPackageDelivery(matchingItem, matchingItem.packages[0], barcode);
+    } else {
+      // No packages defined, treat as simple item
+      await processSimpleItemDelivery(matchingItem, barcode);
+    }
+  }
+}
+
+// Process delivery of a specific package
+async function processPackageDelivery(item, packageInfo, barcode) {
+  const deliveryKey = `${item.id}_${packageInfo.id}`;
+  const currentDelivered = deliveryScans[deliveryKey] || 0;
+  const packageQuantity = packageInfo.quantity || 1;
+  const requiredPackages = 1; // Each package needs to be scanned once for delivery
+  
+  if (currentDelivered >= requiredPackages) {
+    showFeedback(`⚠️ ${packageInfo.package_name || packageInfo.package_number} - Bu paket zaten teslim edildi!`, 'warning');
+    return;
+  }
+  
+  // Increment delivery count
+  deliveryScans[deliveryKey] = currentDelivered + 1;
+  
+  // Update overall item delivery count
+  const totalDelivered = calculateTotalDelivered(item);
+  deliveryScans[item.id] = Math.min(totalDelivered, item.quantity);
+  
+  // Update UI
+  updateItemDisplay(item);
+  updateProgress();
+  
+  // Add scan to backend
+  if (orderData.deliveryId) {
+    try {
+      await API.addDeliveryScan(orderData.deliveryId, {
+        order_item_id: item.id,
+        product_id: item.product_id,
+        package_id: packageInfo.id,
+        barcode: barcode,
+        scanned_quantity: packageQuantity,
+        delivery_type: 'package'
+      });
+    } catch (error) {
+      console.error('Error saving delivery scan:', error);
+    }
+  }
+  
+  // Visual feedback and update last scanned
+  const delivered = deliveryScans[deliveryKey];
+  showFeedback(`✅ ${packageInfo.package_name || packageInfo.package_number} teslim edildi (${delivered}/${requiredPackages})`, 'success');
+  
+  $('#lastScanned').textContent = `✅ ${packageInfo.package_name || packageInfo.package_number} (${delivered}/${requiredPackages})`;
+  $('#lastScanned').style.color = '#22c55e';
+}
+
+// Process simple item delivery (no packages)
+async function processSimpleItemDelivery(item, barcode) {
+  const currentDelivered = deliveryScans[item.id] || 0;
+  
+  if (currentDelivered >= item.quantity) {
+    showFeedback(`⚠️ ${item.sku} - Tüm miktarlar zaten teslim edildi!`, 'warning');
+    return;
+  }
+  
+  deliveryScans[item.id] = currentDelivered + 1;
+  
+  // Update UI
+  updateItemDisplay(item);
+  updateProgress();
+  
+  // Add scan to backend
+  if (orderData.deliveryId) {
+    try {
+      await API.addDeliveryScan(orderData.deliveryId, {
+        order_item_id: item.id,
+        product_id: item.product_id,
+        barcode: barcode,
+        scanned_quantity: 1,
+        delivery_type: 'simple'
+      });
+    } catch (error) {
+      console.error('Error saving delivery scan:', error);
+    }
+  }
+  
+  showFeedback(`✅ ${item.sku} teslim edildi (${currentDelivered + 1}/${item.quantity})`, 'success');
+  
+  $('#lastScanned').textContent = `✅ ${item.sku} (${currentDelivered + 1}/${item.quantity})`;
+  $('#lastScanned').style.color = '#22c55e';
+}
+
+// Calculate total delivered packages for an item (for delivery verification)
+function calculateTotalDelivered(item) {
+  if (!item.packages || item.packages.length === 0) {
+    return deliveryScans[item.id] || 0;
+  }
+  
+  // For delivery verification, count how many packages have been scanned
+  let totalDeliveredPackages = 0;
+  item.packages.forEach(pkg => {
+    const deliveryKey = `${item.id}_${pkg.id}`;
+    const packageDeliveries = deliveryScans[deliveryKey] || 0;
+    if (packageDeliveries > 0) {
+      totalDeliveredPackages += 1; // Each package counts as 1 when delivered
+    }
+  });
+  
+  return totalDeliveredPackages;
+}
+
+// Show package selection modal for items with multiple packages
+function showPackageSelection(item, barcode) {
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+  `;
+  
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 80vh;
+    overflow-y: auto;
+  `;
+  
+  content.innerHTML = `
+    <h3>📦 Paket Seçin - ${item.product_name}</h3>
+    <p>Bu ürün için hangi paketi teslim ediyorsunuz?</p>
+    <div class="package-options">
+      ${item.packages.map(pkg => {
+        const deliveryKey = `${item.id}_${pkg.id}`;
+        const delivered = deliveryScans[deliveryKey] || 0;
+        const required = 1; // Each package needs to be scanned once for delivery verification
+        const isComplete = delivered >= required;
+        
+        return `
+          <div class="package-option ${isComplete ? 'completed' : ''}" onclick="selectPackage(${item.id}, ${pkg.id}, '${barcode}')">
+            <div class="package-info">
+              <strong>${pkg.package_name || pkg.package_number}</strong>
+              <div>Barkod: ${pkg.barcode}</div>
+              <div>İçerik: ${pkg.quantity || 1} adet</div>
+              <div>Durum: ${delivered}/${required} teslim edildi</div>
+            </div>
+            <div class="package-status">${isComplete ? '✅' : '📦'}</div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+    <button onclick="closePackageModal()" class="btn-secondary" style="width:100%;margin-top:16px;">İptal</button>
+  `;
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .package-option {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px;
+      margin: 8px 0;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .package-option:hover {
+      background: var(--hover);
+      border-color: var(--accent);
+    }
+    .package-option.completed {
+      background: rgba(34, 197, 94, 0.1);
+      border-color: var(--success);
+    }
+    .package-info div {
+      font-size: 12px;
+      color: var(--muted);
+      margin: 2px 0;
+    }
+    .package-status {
+      font-size: 24px;
+    }
+  `;
+  
+  document.head.appendChild(style);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  
+  window.currentPackageModal = modal;
+  window.currentPackageStyle = style;
+  
+  window.selectPackage = async (itemId, packageId, barcode) => {
+    const item = orderItems.find(i => i.id === itemId);
+    const pkg = item.packages.find(p => p.id === packageId);
+    closePackageModal();
+    await processPackageDelivery(item, pkg, barcode);
+  };
+  
+  window.closePackageModal = () => {
+    document.body.removeChild(window.currentPackageModal);
+    document.head.removeChild(window.currentPackageStyle);
+  };
+}
+
+// Show feedback messages
+function showFeedback(message, type = 'info') {
+  const colors = {
+    success: '#22c55e',
+    error: '#ef4444',
+    warning: '#f59e0b',
+    info: '#3b82f6'
+  };
+  
+  const notification = document.createElement('div');
+  notification.style.cssText = `
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: ${colors[type]};
+    color: white;
+    padding: 16px 24px;
+    border-radius: 8px;
+    font-weight: bold;
+    font-size: 16px;
+    z-index: 9999;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    max-width: 80vw;
+    text-align: center;
+  `;
+  notification.textContent = message;
+  document.body.appendChild(notification);
+  
+  setTimeout(() => {
+    if (document.body.contains(notification)) {
+      document.body.removeChild(notification);
+    }
+  }, 3000);
+}
+
+// Update item display after delivery scan
+function updateItemDisplay(item) {
+  const totalDelivered = calculateTotalDelivered(item);
+  const requiredCount = item.packages && item.packages.length > 0 ? item.packages.length : item.quantity;
+  const remaining = Math.max(0, requiredCount - totalDelivered);
+  const status = getItemStatus(item);
+  
+  // Update desktop table - Quantity column (main product quantity)
+  const quantityDeliveredSpan = $(`#quantity-delivered-${item.id}`);
+  if (quantityDeliveredSpan) {
+    const mainQuantityDelivered = item.packages && item.packages.length > 0 
+      ? (totalDelivered >= item.packages.length ? 1 : 0) 
+      : totalDelivered;
+    quantityDeliveredSpan.textContent = mainQuantityDelivered;
+  }
+  
+  // Update package progress text
+  const packageProgressSpan = $(`#package-progress-${item.id}`);
+  if (packageProgressSpan && item.packages && item.packages.length > 0) {
+    packageProgressSpan.textContent = `${totalDelivered}/${item.packages.length} paket`;
+  }
+  
+  const row = $(`tr[data-item-id="${item.id}"]`);
+  if (row) {
+    row.className = `item-row ${status}`;
+    const statusCell = row.querySelector('td:last-child span');
+    if (statusCell) {
+      statusCell.textContent = getStatusIcon(status);
+      statusCell.className = `status-${status}`;
+    }
+    
+    // Update desktop progress bar
+    if (item.packages && item.packages.length > 0) {
+      const progressPercent = requiredCount > 0 ? (totalDelivered / requiredCount) * 100 : 0;
+      const packageCell = row.querySelector('td:nth-child(5)'); // Paketler column
+      if (packageCell) {
+        const progressBar = packageCell.querySelector('div div');
+        if (progressBar) {
+          progressBar.style.width = progressPercent + '%';
+          progressBar.style.background = progressPercent === 100 ? '#22c55e' : '#f59e0b';
+          progressBar.style.transition = 'width 0.5s ease-in-out, background 0.3s ease';
+        }
+      }
+    }
+  }
+  
+  // Update mobile cards - Main product quantity
+  const mobileQuantityDelivered = $(`#mobile-quantity-delivered-${item.id}`);
+  const mobileQuantityRemaining = $(`#mobile-quantity-remaining-${item.id}`);
+  
+  const mainQuantityDelivered = item.packages && item.packages.length > 0 
+    ? (totalDelivered >= item.packages.length ? 1 : 0) 
+    : totalDelivered;
+  const mainQuantityRemaining = Math.max(0, item.quantity - mainQuantityDelivered);
+  
+  if (mobileQuantityDelivered) mobileQuantityDelivered.textContent = mainQuantityDelivered;
+  if (mobileQuantityRemaining) mobileQuantityRemaining.textContent = mainQuantityRemaining;
+  
+  const mobileCard = $(`.mobile-item-card[data-item-id="${item.id}"]`);
+  if (mobileCard) {
+    mobileCard.className = `mobile-item-card ${status}`;
+    
+    // Update mobile package progress
+    const mobilePackageProgress = $(`#mobile-package-progress-${item.id}`);
+    if (mobilePackageProgress && item.packages && item.packages.length > 0) {
+      const progressPercent = item.packages.length > 0 ? (totalDelivered / item.packages.length) * 100 : 0;
+      
+      // Update progress bar
+      const progressBar = mobilePackageProgress.querySelector('div div');
+      if (progressBar) {
+        progressBar.style.width = progressPercent + '%';
+        progressBar.style.background = progressPercent === 100 ? '#22c55e' : '#f59e0b';
+        progressBar.style.transition = 'width 0.5s ease-in-out, background 0.3s ease';
+      }
+      
+      // Update the text
+      const textPart = mobilePackageProgress.childNodes[0];
+      if (textPart && textPart.nodeType === Node.TEXT_NODE) {
+        textPart.textContent = `${totalDelivered}/${item.packages.length}`;
+      }
+    }
+  }
+}
+
+// Show item package details modal
+function showItemPackages(itemId) {
+  const item = orderItems.find(i => i.id === itemId);
+  if (!item) return;
+  
+  const modal = document.createElement('div');
+  modal.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+    padding: 16px;
+  `;
+  
+  const content = document.createElement('div');
+  content.style.cssText = `
+    background: var(--bg);
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 600px;
+    width: 100%;
+    max-height: 80vh;
+    overflow-y: auto;
+  `;
+  
+  const totalDelivered = calculateTotalDelivered(item);
+  const remaining = Math.max(0, item.quantity - totalDelivered);
+  
+  let packagesHtml = '';
+  if (item.packages && item.packages.length > 0) {
+    packagesHtml = item.packages.map(pkg => {
+      const deliveryKey = `${item.id}_${pkg.id}`;
+      const delivered = deliveryScans[deliveryKey] || 0;
+      const required = 1; // Each package needs to be scanned once for delivery verification
+      const isComplete = delivered >= required;
+      
+      return `
+        <div class="package-detail ${isComplete ? 'completed' : ''}">
+          <div class="package-header">
+            <strong>📦 ${pkg.package_name || pkg.package_number}</strong>
+            <span class="package-status">${isComplete ? '✅' : '🚚'}</span>
+          </div>
+          <div class="package-info">
+            <div>Barkod: <code>${pkg.barcode}</code></div>
+            <div>İçerik: ${pkg.quantity || 1} adet</div>
+            <div>Teslim: <strong>${delivered}/${required}</strong> paket</div>
+            <div class="progress-bar-small">
+              <div class="progress-fill-small" style="width: ${required > 0 ? (delivered/required)*100 : 0}%"></div>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } else {
+    packagesHtml = '<div class="no-packages">⚠️ Bu ürün için paket tanımlı değil</div>';
+  }
+  
+  content.innerHTML = `
+    <h3>📦 Teslimat Detayı - ${item.product_name || item.sku}</h3>
+    <div class="item-summary">
+      <div><strong>SKU:</strong> ${item.sku}</div>
+      <div><strong>Toplam Miktar:</strong> ${item.quantity}</div>
+      <div><strong>Teslim Edilen:</strong> ${totalDelivered}</div>
+      <div><strong>Kalan:</strong> ${remaining}</div>
+    </div>
+    <hr>
+    <h4>Paket Detayları:</h4>
+    <div class="packages-list">
+      ${packagesHtml}
+    </div>
+    <div class="modal-actions">
+      <button onclick="closePackageDetailModal()" class="btn-secondary">İptal</button>
+      <button onclick="focusOnItem(${itemId}); closePackageDetailModal();" class="btn-primary">📱 Paket Tara</button>
+    </div>
+  `;
+  
+  const style = document.createElement('style');
+  style.textContent = `
+    .item-summary {
+      background: var(--hover);
+      padding: 12px;
+      border-radius: 6px;
+      margin: 12px 0;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .package-detail {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 12px;
+      margin: 8px 0;
+      transition: all 0.2s;
+    }
+    .package-detail.completed {
+      border-color: var(--success);
+      background: rgba(34, 197, 94, 0.1);
+    }
+    .package-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .package-info div {
+      margin: 4px 0;
+      font-size: 14px;
+    }
+    .progress-bar-small {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .progress-fill-small {
+      height: 100%;
+      background: var(--success);
+      border-radius: 2px;
+      transition: width 0.3s ease;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .modal-actions button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 6px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    .btn-secondary {
+      background: var(--muted);
+      color: var(--fg);
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+    .no-packages {
+      text-align: center;
+      padding: 20px;
+      color: var(--muted);
+      font-style: italic;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 16px 0;
+    }
+  `;
+  
+  document.head.appendChild(style);
+  modal.appendChild(content);
+  document.body.appendChild(modal);
+  
+  window.currentPackageDetailModal = modal;
+  window.currentPackageDetailStyle = style;
+  
+  window.closePackageDetailModal = () => {
+    document.body.removeChild(window.currentPackageDetailModal);
+    document.head.removeChild(window.currentPackageDetailStyle);
+  };
+}
+
+// Update progress bar and delivery completion status
+function updateProgress() {
+  const totalItems = orderItems.length;
+  const completedItems = orderItems.filter(item => {
+    const totalDelivered = calculateTotalDelivered(item);
+    // For package-based items, check if all packages are delivered
+    // For simple items, check quantity
+    if (item.packages && item.packages.length > 0) {
+      return totalDelivered >= item.packages.length;
+    } else {
+      return totalDelivered >= item.quantity;
+    }
+  }).length;
+  
+  const progressPercent = totalItems > 0 ? (completedItems / totalItems) * 100 : 0;
+  
+  $('#progressFill').style.width = progressPercent + '%';
+  $('#progressText').textContent = `${completedItems}/${totalItems}`;
+  
+  // Update complete section
+  const completeSection = $('#completeSection');
+  const completeBtn = $('#completeDelivery');
+  
+  if (completedItems === totalItems && totalItems > 0) {
+    completeSection.classList.add('ready');
+    completeBtn.disabled = false;
+    completeBtn.textContent = '🚚 Teslimatı Tamamla (Tüm paketler teslim edildi!)';
+  } else {
+    completeSection.classList.remove('ready');
+    completeBtn.disabled = true;
+    completeBtn.textContent = `🚚 Teslimatı Tamamla (${totalItems - completedItems} kalem kaldı)`;
+  }
+}
+
+// Signature functionality
+function setupSignature() {
+  const canvas = $('#signatureCanvas');
+  const ctx = canvas.getContext('2d');
+  
+  let isDrawing = false;
+  let lastX = 0;
+  let lastY = 0;
+  
+  function getEventPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  }
+  
+  function startDrawing(e) {
+    e.preventDefault();
+    isDrawing = true;
+    const pos = getEventPos(e);
+    lastX = pos.x;
+    lastY = pos.y;
+  }
+  
+  function draw(e) {
+    if (!isDrawing) return;
+    e.preventDefault();
+    
+    const pos = getEventPos(e);
+    
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    
+    ctx.beginPath();
+    ctx.moveTo(lastX, lastY);
+    ctx.lineTo(pos.x, pos.y);
+    ctx.stroke();
+    
+    lastX = pos.x;
+    lastY = pos.y;
+  }
+  
+  function stopDrawing() {
+    isDrawing = false;
+  }
+  
+  // Mouse events
+  canvas.addEventListener('mousedown', startDrawing);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', stopDrawing);
+  canvas.addEventListener('mouseout', stopDrawing);
+  
+  // Touch events
+  canvas.addEventListener('touchstart', startDrawing);
+  canvas.addEventListener('touchmove', draw);
+  canvas.addEventListener('touchend', stopDrawing);
+  
+  // Clear signature
+  $('#clearSignature').addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    signatureData = null;
+  });
+  
+  // Save signature
+  $('#saveSignature').addEventListener('click', () => {
+    signatureData = canvas.toDataURL();
+    alert('✅ İmza kaydedildi!');
+  });
+}
+
+// Complete delivery
+async function completeDelivery() {
+  const completeBtn = $('#completeDelivery');
+  
+  if (!signatureData) {
+    alert('❌ Lütfen önce müşteri imzasını alın!');
+    return;
+  }
+  
+  const deliveryNotes = $('#deliveryNotes').value.trim();
+  
+  completeBtn.disabled = true;
+  completeBtn.textContent = '⏳ Teslimat tamamlanıyor...';
+  
+  try {
+    const result = await API.completeDelivery(orderData.deliveryId, {
+      customer_signature: signatureData,
+      delivery_notes: deliveryNotes,
+      delivery_scans: deliveryScans
+    });
+    
+    if (result.success) {
+      alert('✅ Teslimat başarıyla tamamlandı!');
+      location.href = '/delivery-confirmation.html';
+    } else {
+      throw new Error(result.error || 'Teslimat tamamlanamadı');
+    }
+  } catch (error) {
+    console.error('Delivery completion error:', error);
+    alert('❌ Teslimat tamamlanırken hata oluştu: ' + error.message);
+    completeBtn.disabled = false;
+    completeBtn.textContent = '🚚 Teslimatı Tamamla';
+  }
+}
+
+// Event listeners
+$('#completeDelivery').addEventListener('click', completeDelivery);
+
+// Make functions global for onclick handlers
+window.focusOnItem = focusOnItem;
+window.showItemPackages = showItemPackages;
+
+// Initialize
+await loadOrder();
+setupSignature();
+</script>
+</body>
+</html>

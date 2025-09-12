@@ -1,0 +1,784 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+  <title>SSH Envanter Yönetimi</title>
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+  <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <style>
+    /* Dropdown Navigation Styles */
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--header-bg, #1e293b);
+    }
+    
+    .nav-link.standalone {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      text-decoration: none;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .nav-link.standalone:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .nav-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      user-select: none;
+    }
+    
+    .nav-dropdown-trigger:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-trigger {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .dropdown-arrow {
+      margin-left: 8px;
+      font-size: 10px;
+      transition: transform 0.2s ease;
+    }
+    
+    .nav-dropdown:hover .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .nav-dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 220px;
+      background: var(--card, #ffffff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      z-index: 1000;
+      overflow: hidden;
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-content {
+      display: block;
+      animation: dropdownFadeIn 0.2s ease;
+    }
+    
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .nav-dropdown-link {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      text-decoration: none;
+      color: var(--fg, #374151);
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--border, #f3f4f6);
+    }
+    
+    .nav-dropdown-link:last-child {
+      border-bottom: none;
+    }
+    
+    .nav-dropdown-link:hover {
+      background: var(--hover, #f8fafc);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-icon {
+      margin-right: 10px;
+      font-size: 16px;
+    }
+    
+    .nav-text {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .main-nav {
+        display: none;
+      }
+    }
+  <style>
+    
+    .search-filters {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .filter-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr auto;
+      gap: 1rem;
+      align-items: end;
+    }
+    
+    .inventory-table {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .table-header {
+      background: var(--bg);
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .inventory-grid {
+      display: grid;
+      grid-template-columns: auto 1fr auto auto auto auto 1fr auto;
+      gap: 0;
+    }
+    
+    .grid-header {
+      background: var(--accent);
+      color: white;
+      padding: 1rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      border-right: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .grid-header:last-child {
+      border-right: none;
+    }
+    
+    .grid-cell {
+      padding: 1rem;
+      border-right: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      font-size: 0.9rem;
+    }
+    
+    .grid-cell:last-child {
+      border-right: none;
+    }
+    
+    .grid-row:nth-child(even) {
+      background: rgba(0,0,0,0.02);
+    }
+    
+    .part-name {
+      font-weight: 600;
+      color: var(--fg);
+    }
+    
+    .product-info {
+      color: var(--muted);
+      font-size: 0.8rem;
+    }
+    
+    .quantity-badge {
+      background: var(--accent);
+      color: white;
+      padding: 0.25rem 0.75rem;
+      border-radius: 12px;
+      font-weight: 600;
+      font-size: 0.8rem;
+    }
+    
+    .location-tag {
+      background: var(--muted);
+      color: white;
+      padding: 0.25rem 0.5rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: monospace;
+    }
+    
+    .action-buttons {
+      display: flex;
+      gap: 0.5rem;
+    }
+    
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.8rem;
+      border-radius: 4px;
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+    }
+    
+    .empty-icon {
+      font-size: 4rem;
+      margin-bottom: 1rem;
+    }
+    
+    @media (max-width: 768px) {
+      .filter-row {
+        grid-template-columns: 1fr;
+        gap: 0.75rem;
+      }
+      
+      .inventory-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .grid-header, .grid-cell {
+        padding: 0.75rem;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <h1>WMS Netsis Entegre</h1>
+    <span class="header-subtitle">SSH Envanter Yönetimi</span>
+  </div>
+  <div class="header-user">
+    <div class="user-info" id="userInfo" style="display: none;">
+      <span class="user-name" id="userName"></span>
+      <span class="user-role" id="userRole"></span>
+      <button class="logout-btn" id="logoutBtn">Çıkış</button>
+    </div>
+  </div>
+  <nav class="main-nav">
+    <!-- Ana Sayfa linki -->
+    <a href="/index.html" class="nav-link standalone">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-text">Ana Sayfa</span>
+    </a>
+    
+    <!-- Ana Modüller Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">Ana Modüller</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/products.html" class="nav-dropdown-link">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Ürünler</span>
+        </a>
+        <a href="/orders.html" class="nav-dropdown-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Siparişler</span>
+        </a>
+        <a href="/delivery-confirmation.html" class="nav-dropdown-link">
+          <span class="nav-icon">🚚</span>
+          <span class="nav-text">Teslimat İşlemleri</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Raf Yönetimi Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">🏬</span>
+        <span class="nav-text">Raf Yönetimi</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/shelf-scanner.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Rafa Dizim</span>
+        </a>
+        <a href="/shelf-locations.html" class="nav-dropdown-link">
+          <span class="nav-icon">📍</span>
+          <span class="nav-text">Lokasyonlar</span>
+        </a>
+        <a href="/shelf-admin.html" class="nav-dropdown-link">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Raf Yönetimi</span>
+        </a>
+        <a href="/shelf-transfer.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔄</span>
+          <span class="nav-text">Raflar Arası Transfer</span>
+        </a>
+        <a href="/inventory-count.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Depo Sayım</span>
+        </a>
+        <a href="/stock-management.html" class="nav-dropdown-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Stok Yönetimi</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- SSH Servis Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">🔧</span>
+        <span class="nav-text">SSH Servis</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/service-request.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-text">Servis Talep</span>
+        </a>
+        <a href="/service-dashboard.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Servis Dashboard</span>
+        </a>
+        <a href="/ssh-inventory.html" class="nav-dropdown-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+  <div id="mobileNav" class="mobile-nav">
+    <button id="mobileNavToggle" class="mobile-nav-toggle">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+    <div id="mobileNavMenu" class="mobile-nav-menu">
+      <div class="mobile-nav-header">
+        <h3>WMS Sistemi</h3>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Ana Modüller</span>
+        <a href="/index.html" class="mobile-nav-link">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-text">Ana Sayfa</span>
+        </a>
+        <a href="/products.html" class="mobile-nav-link">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Ürünler</span>
+        </a>
+        <a href="/orders.html" class="mobile-nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Siparişler</span>
+        </a>
+        <a href="/delivery-confirmation.html" class="mobile-nav-link">
+          <span class="nav-icon">🚚</span>
+          <span class="nav-text">Teslimat İşlemleri</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Raf Yönetimi</span>
+        <a href="/shelf-scanner.html" class="mobile-nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Rafa Dizim</span>
+        </a>
+        <a href="/shelf-locations.html" class="mobile-nav-link">
+          <span class="nav-icon">📍</span>
+          <span class="nav-text">Lokasyonlar</span>
+        </a>
+        <a href="/shelf-admin.html" class="mobile-nav-link">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Raf Yönetimi</span>
+        </a>
+        <a href="/shelf-transfer.html" class="mobile-nav-link">
+          <span class="nav-icon">🔄</span>
+          <span class="nav-text">Raflar Arası Transfer</span>
+        </a>
+        <a href="/inventory-count.html" class="mobile-nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Depo Sayım</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">SSH Servis</span>
+        <a href="/service-request.html" class="mobile-nav-link">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-text">Servis Talep</span>
+        </a>
+        <a href="/service-dashboard.html" class="mobile-nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Servis Dashboard</span>
+        </a>
+        <a href="/ssh-inventory.html" class="mobile-nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="main-content">
+  <div class="content-header">
+    <h2>📋 SSH Envanter Yönetimi</h2>
+    <p>SSH-01-01 alanındaki parça envanteri ve stok durumu</p>
+  </div>
+
+
+  <!-- Search and Filters -->
+  <div class="search-filters">
+    <h3>🔍 Arama ve Filtreler</h3>
+    <div class="filter-row">
+      <div class="form-group">
+        <label for="searchInput">SKU Arama</label>
+        <input type="text" id="searchInput" placeholder="Ürün SKU ara..." onkeyup="filterInventory()">
+      </div>
+      <div class="form-group">
+        <label for="productFilter">Ürün</label>
+        <select id="productFilter" onchange="filterInventory()">
+          <option value="">Tümü</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label for="statusFilter">Durum</label>
+        <select id="statusFilter" onchange="filterInventory()">
+          <option value="">Tümü</option>
+          <option value="available">Kullanılabilir</option>
+          <option value="used">Kullanılmış</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <button class="btn btn-secondary" onclick="resetFilters()">Temizle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inventory Table -->
+  <div class="inventory-table">
+    <div class="table-header">
+      <h3>SSH Envanter Listesi</h3>
+      <button class="btn btn-primary" onclick="exportInventory()">📄 Rapor İndir</button>
+    </div>
+    
+    <div class="inventory-grid" id="inventoryGrid">
+      <div class="grid-header">ID</div>
+      <div class="grid-header">Parça Adı</div>
+      <div class="grid-header">Ürün</div>
+      <div class="grid-header">Adet</div>
+      <div class="grid-header">Konum</div>
+      <div class="grid-header">Kaynak</div>
+      <div class="grid-header">Notlar</div>
+      <div class="grid-header">İşlemler</div>
+      
+      <!-- Dynamic content will be inserted here -->
+    </div>
+    
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <div class="empty-icon">📦</div>
+      <h3>SSH Envanteri Boş</h3>
+      <p>Henüz SSH alanına transfer edilmiş parça bulunmuyor.</p>
+    </div>
+  </div>
+</main>
+
+<script>
+let allInventory = [];
+let filteredInventory = [];
+let products = [];
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('📋 SSH Envanter Yönetimi yüklendi');
+    loadProducts();
+    loadInventory();
+});
+
+// Load products for filter dropdown
+async function loadProducts() {
+    try {
+        const response = await fetch('/api/products');
+        products = await response.json();
+        
+        const productSelect = document.getElementById('productFilter');
+        productSelect.innerHTML = '<option value="">Tümü</option>' + 
+            products.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+    } catch (error) {
+        console.error('❌ Products loading error:', error);
+    }
+}
+
+// Load SSH inventory
+async function loadInventory() {
+    try {
+        const response = await fetch('/api/ssh-inventory');
+        const data = await response.json();
+        
+        if (data.success) {
+            allInventory = data.inventory;
+            filteredInventory = [...allInventory];
+            displayInventory();
+        } else {
+            console.error('❌ Inventory loading failed:', data.error);
+        }
+    } catch (error) {
+        console.error('❌ Inventory loading error:', error);
+        displayEmptyState();
+    }
+}
+
+
+// Display inventory grid
+function displayInventory() {
+    const grid = document.getElementById('inventoryGrid');
+    const emptyState = document.getElementById('emptyState');
+    
+    if (filteredInventory.length === 0) {
+        displayEmptyState();
+        return;
+    }
+    
+    emptyState.style.display = 'none';
+    
+    // Clear grid and rebuild with headers only
+    const headers = `
+        <div class="grid-header">ID</div>
+        <div class="grid-header">Parça Adı</div>
+        <div class="grid-header">Ürün</div>
+        <div class="grid-header">Adet</div>
+        <div class="grid-header">Konum</div>
+        <div class="grid-header">Kaynak</div>
+        <div class="grid-header">Notlar</div>
+        <div class="grid-header">İşlemler</div>
+    `;
+    
+    const dataRows = filteredInventory.map(item => `
+        <div class="grid-cell">#${item.id}</div>
+        <div class="grid-cell">
+            <div class="part-name">${item.part_name}</div>
+            <div class="product-info">${item.product_name}</div>
+        </div>
+        <div class="grid-cell">
+            <div>${item.product_name}</div>
+            <div class="product-info">SKU: ${item.product_sku || '-'}</div>
+        </div>
+        <div class="grid-cell">
+            <span class="quantity-badge">${item.quantity}</span>
+        </div>
+        <div class="grid-cell">
+            <span class="location-tag">${item.location_code}</span>
+        </div>
+        <div class="grid-cell">
+            <div style="font-size: 0.8rem;">
+                <div>Paket: ${item.package_number || item.source_package_barcode}</div>
+                <div style="color: var(--muted);">${formatDate(item.created_date)}</div>
+            </div>
+        </div>
+        <div class="grid-cell">
+            <textarea id="notes-${item.id}" placeholder="Paket içeriği notları..." style="width: 100%; min-height: 40px; font-size: 0.8rem; border: 1px solid var(--border); border-radius: 4px; padding: 4px;" onchange="updateNotes(${item.id})">${item.notes || ''}</textarea>
+        </div>
+        <div class="grid-cell">
+            <div class="action-buttons">
+                <button class="btn btn-small btn-secondary" onclick="viewPartHistory(${item.id})">
+                    📋 Geçmiş
+                </button>
+                <button class="btn btn-small btn-danger" onclick="emptyPackage(${item.id})" ${!item.is_available ? 'disabled' : ''}>
+                    🗑️ Paket Boşaldı
+                </button>
+            </div>
+        </div>
+    `).join('');
+    
+    grid.innerHTML = headers + dataRows;
+}
+
+// Display empty state
+function displayEmptyState() {
+    const grid = document.getElementById('inventoryGrid');
+    const emptyState = document.getElementById('emptyState');
+    
+    // Only show headers
+    grid.innerHTML = `
+        <div class="grid-header">ID</div>
+        <div class="grid-header">Parça Adı</div>
+        <div class="grid-header">Ürün</div>
+        <div class="grid-header">Adet</div>
+        <div class="grid-header">Konum</div>
+        <div class="grid-header">Kaynak</div>
+        <div class="grid-header">Notlar</div>
+        <div class="grid-header">İşlemler</div>
+    `;
+    
+    emptyState.style.display = 'block';
+}
+
+// Filter inventory
+function filterInventory() {
+    const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+    const productId = document.getElementById('productFilter').value;
+    const status = document.getElementById('statusFilter').value;
+    
+    filteredInventory = allInventory.filter(item => {
+        const matchesSearch = !searchTerm || 
+            (item.product_sku && item.product_sku.toLowerCase().includes(searchTerm));
+            
+        const matchesProduct = !productId || item.product_id.toString() === productId;
+        
+        const matchesStatus = !status || 
+            (status === 'available' && item.is_available) ||
+            (status === 'used' && !item.is_available);
+            
+        return matchesSearch && matchesProduct && matchesStatus;
+    });
+    
+    displayInventory();
+}
+
+// Reset filters
+function resetFilters() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('productFilter').value = '';
+    document.getElementById('statusFilter').value = '';
+    filteredInventory = [...allInventory];
+    displayInventory();
+}
+
+// View part history
+function viewPartHistory(inventoryId) {
+    const item = allInventory.find(i => i.id === inventoryId);
+    if (!item) return;
+    
+    alert(`📋 Parça Geçmişi\n\nParça: ${item.part_name}\nÜrün: ${item.product_name}\nKaynak Paket: ${item.source_package_barcode}\nOluşturma: ${formatDate(item.created_date)}\nSon Kullanım: ${item.last_used_date ? formatDate(item.last_used_date) : 'Henüz kullanılmamış'}\nDurum: ${item.is_available ? 'Kullanılabilir' : 'Kullanılmış'}`);
+}
+
+// Transfer part to service
+async function emptyPackage(inventoryId) {
+    const item = allInventory.find(i => i.id === inventoryId);
+    if (!item || !item.is_available) return;
+    
+    const confirmed = confirm(`🗑️ Paket Boşaltma\n\nParça: ${item.part_name}\nAdet: ${item.quantity}\n\nBu paketi SSH envanterinden kaldırmak istediğinize emin misiniz?\n(Bu işlem geri alınamaz)`);
+    
+    if (confirmed) {
+        try {
+            const response = await fetch(`/api/ssh-inventory/${inventoryId}/empty`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('✅ Paket SSH envanterinden kaldırıldı!');
+                loadInventory();
+            } else {
+                alert('❌ Paket kaldırma hatası: ' + data.error);
+            }
+        } catch (error) {
+            console.error('❌ Empty package error:', error);
+            alert('Paket kaldırma sırasında hata oluştu: ' + error.message);
+        }
+    }
+}
+
+// Update notes for SSH inventory item
+async function updateNotes(inventoryId) {
+    const notesTextarea = document.getElementById(`notes-${inventoryId}`);
+    const notes = notesTextarea.value.trim();
+    
+    try {
+        const response = await fetch(`/api/ssh-inventory/${inventoryId}/notes`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notes })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Visual feedback - briefly highlight the textarea
+            notesTextarea.style.borderColor = 'var(--success)';
+            setTimeout(() => {
+                notesTextarea.style.borderColor = 'var(--border)';
+            }, 1000);
+            console.log('✅ Notes updated for item:', inventoryId);
+        } else {
+            alert('❌ Not güncelleme hatası: ' + data.error);
+        }
+    } catch (error) {
+        console.error('❌ Notes update error:', error);
+        alert('Not güncelleme sırasında hata oluştu: ' + error.message);
+    }
+}
+
+// Export inventory report
+function exportInventory() {
+    const csvContent = [
+        ['ID', 'Parça Adı', 'Ürün', 'Adet', 'Konum', 'Kaynak Paket', 'Oluşturma Tarihi', 'Durum'].join(','),
+        ...filteredInventory.map(item => [
+            item.id,
+            `"${item.part_name}"`,
+            `"${item.product_name}"`,
+            item.quantity,
+            item.location_code,
+            item.source_package_barcode,
+            formatDate(item.created_date),
+            item.is_available ? 'Kullanılabilir' : 'Kullanılmış'
+        ].join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `ssh-envanter-${new Date().toISOString().split('T')[0]}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// Utility functions
+function formatDate(dateString) {
+    if (!dateString) return '-';
+    const date = new Date(dateString);
+    return date.toLocaleString('tr-TR');
+}
+
+// Mobile navigation toggle
+document.getElementById('mobileNavToggle').addEventListener('click', () => {
+  const menu = document.getElementById('mobileNavMenu');
+  menu.classList.toggle('show');
+});
+
+// Close mobile menu when clicking outside
+document.addEventListener('click', (e) => {
+  const nav = document.getElementById('mobileNav');
+  const menu = document.getElementById('mobileNavMenu');
+  if (!nav.contains(e.target)) {
+    menu.classList.remove('show');
+  }
+});
+</script>
+</body>
+</html>

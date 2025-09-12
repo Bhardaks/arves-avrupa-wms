@@ -1,0 +1,1183 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
+  <title>Raporlama - WMS</title>
+  <link rel="stylesheet" href="/assets/css/styles.css" />
+  <link rel="stylesheet" href="/assets/css/zebra-terminal.css" />
+  <script src="/assets/js/auth.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    /* Dropdown Navigation Styles */
+    .main-nav {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: var(--header-bg, #1e293b);
+    }
+    
+    .nav-link.standalone {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      text-decoration: none;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .nav-link.standalone:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown {
+      position: relative;
+      display: inline-block;
+    }
+    
+    .nav-dropdown-trigger {
+      display: flex;
+      align-items: center;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--header-fg, #e2e8f0);
+      transition: all 0.2s ease;
+      border-right: 1px solid rgba(255,255,255,0.1);
+      user-select: none;
+    }
+    
+    .nav-dropdown-trigger:hover {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-trigger {
+      background: rgba(255,255,255,0.1);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .dropdown-arrow {
+      margin-left: 8px;
+      font-size: 10px;
+      transition: transform 0.2s ease;
+    }
+    
+    .nav-dropdown:hover .dropdown-arrow {
+      transform: rotate(180deg);
+    }
+    
+    .nav-dropdown-content {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      min-width: 220px;
+      background: var(--card, #ffffff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      z-index: 1000;
+      overflow: hidden;
+    }
+    
+    .nav-dropdown:hover .nav-dropdown-content {
+      display: block;
+      animation: dropdownFadeIn 0.2s ease;
+    }
+    
+    @keyframes dropdownFadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    .nav-dropdown-link {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      text-decoration: none;
+      color: var(--fg, #374151);
+      transition: all 0.2s ease;
+      border-bottom: 1px solid var(--border, #f3f4f6);
+    }
+    
+    .nav-dropdown-link:last-child {
+      border-bottom: none;
+    }
+    
+    .nav-dropdown-link:hover {
+      background: var(--hover, #f8fafc);
+      color: var(--accent, #3b82f6);
+    }
+    
+    .nav-icon {
+      margin-right: 10px;
+      font-size: 16px;
+    }
+    
+    .nav-text {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+      .main-nav {
+        display: none;
+      }
+    }
+
+    /* Report Styles */
+    .report-selector {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+    }
+
+    .report-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .report-tab {
+      background: transparent;
+      border: none;
+      padding: 12px 20px;
+      cursor: pointer;
+      color: var(--muted);
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+      font-weight: 500;
+    }
+
+    .report-tab:hover {
+      color: var(--fg);
+      background: rgba(255,255,255,0.05);
+    }
+
+    .report-tab.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .report-content {
+      display: none;
+    }
+
+    .report-content.active {
+      display: block;
+    }
+
+    .report-filters {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin-bottom: 20px;
+      padding: 15px;
+      background: rgba(255,255,255,0.02);
+      border-radius: 6px;
+    }
+
+    .filter-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-group label {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 500;
+    }
+
+    .filter-group input, .filter-group select {
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--card);
+      color: var(--fg);
+    }
+
+    .report-actions {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .report-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--card);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .report-table th {
+      background: var(--header-bg, #1e293b);
+      color: var(--header-fg, #e2e8f0);
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 13px;
+    }
+
+    .report-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: var(--fg);
+      font-size: 13px;
+    }
+
+    .report-table tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+
+    .status-badge {
+      padding: 4px 8px;
+      border-radius: 12px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .status-low {
+      background: rgba(239, 68, 68, 0.2);
+      color: #ef4444;
+    }
+
+    .status-normal {
+      background: rgba(34, 197, 94, 0.2);
+      color: #22c55e;
+    }
+
+    .status-high {
+      background: rgba(251, 191, 36, 0.2);
+      color: #fbbf24;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+    }
+
+    .chart-container {
+      height: 300px;
+      margin: 20px 0;
+      background: var(--card);
+      border-radius: 8px;
+      padding: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .report-filters {
+        grid-template-columns: 1fr;
+      }
+      
+      .report-actions {
+        flex-direction: column;
+      }
+      
+      .report-table {
+        font-size: 12px;
+      }
+      
+      .report-table th,
+      .report-table td {
+        padding: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="header-brand">
+    <h1>WMS Netsis Entegre</h1>
+    <span class="header-subtitle">Raporlama Merkezi</span>
+  </div>
+  <div class="header-user">
+    <div class="user-info" id="userInfo" style="display: none;">
+      <span class="user-name" id="userName"></span>
+      <span class="user-role" id="userRole"></span>
+      <button class="logout-btn" id="logoutBtn">Çıkış</button>
+    </div>
+  </div>
+  <nav class="main-nav">
+    <!-- Ana Sayfa linki -->
+    <a href="/index.html" class="nav-link standalone">
+      <span class="nav-icon">🏠</span>
+      <span class="nav-text">Ana Sayfa</span>
+    </a>
+    
+    <!-- Ana Modüller Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">📊</span>
+        <span class="nav-text">Ana Modüller</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/products.html" class="nav-dropdown-link">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Ürünler</span>
+        </a>
+        <a href="/orders.html" class="nav-dropdown-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Siparişler</span>
+        </a>
+        <a href="/delivery-confirmation.html" class="nav-dropdown-link">
+          <span class="nav-icon">🚚</span>
+          <span class="nav-text">Teslimat İşlemleri</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- Raf Yönetimi Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">🏬</span>
+        <span class="nav-text">Raf Yönetimi</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/shelf-scanner.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Rafa Dizim</span>
+        </a>
+        <a href="/shelf-locations.html" class="nav-dropdown-link">
+          <span class="nav-icon">📍</span>
+          <span class="nav-text">Lokasyonlar</span>
+        </a>
+        <a href="/shelf-admin.html" class="nav-dropdown-link">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Raf Yönetimi</span>
+        </a>
+        <a href="/shelf-transfer.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔄</span>
+          <span class="nav-text">Raflar Arası Transfer</span>
+        </a>
+        <a href="/inventory-count.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Depo Sayım</span>
+        </a>
+        <a href="/stock-management.html" class="nav-dropdown-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Stok Yönetimi</span>
+        </a>
+      </div>
+    </div>
+    
+    <!-- SSH Servis Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">🔧</span>
+        <span class="nav-text">SSH Servis</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/service-request.html" class="nav-dropdown-link">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-text">Servis Talep</span>
+        </a>
+        <a href="/service-dashboard.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Servis Dashboard</span>
+        </a>
+        <a href="/ssh-inventory.html" class="nav-dropdown-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Raporlama Dropdown -->
+    <div class="nav-dropdown">
+      <div class="nav-dropdown-trigger">
+        <span class="nav-icon">📈</span>
+        <span class="nav-text">Raporlama</span>
+        <span class="dropdown-arrow">▼</span>
+      </div>
+      <div class="nav-dropdown-content">
+        <a href="/reports.html" class="nav-dropdown-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Stok Raporları</span>
+        </a>
+      </div>
+    </div>
+  </nav>
+  <div id="mobileNav" class="mobile-nav">
+    <button id="mobileNavToggle" class="mobile-nav-toggle">
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+    <div id="mobileNavMenu" class="mobile-nav-menu">
+      <div class="mobile-nav-header">
+        <h3>WMS Sistemi</h3>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Ana Modüller</span>
+        <a href="/index.html" class="mobile-nav-link">
+          <span class="nav-icon">🏠</span>
+          <span class="nav-text">Ana Sayfa</span>
+        </a>
+        <a href="/products.html" class="mobile-nav-link">
+          <span class="nav-icon">📦</span>
+          <span class="nav-text">Ürünler</span>
+        </a>
+        <a href="/orders.html" class="mobile-nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">Siparişler</span>
+        </a>
+        <a href="/delivery-confirmation.html" class="mobile-nav-link">
+          <span class="nav-icon">🚚</span>
+          <span class="nav-text">Teslimat İşlemleri</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Raf Yönetimi</span>
+        <a href="/shelf-scanner.html" class="mobile-nav-link">
+          <span class="nav-icon">🔍</span>
+          <span class="nav-text">Rafa Dizim</span>
+        </a>
+        <a href="/shelf-locations.html" class="mobile-nav-link">
+          <span class="nav-icon">📍</span>
+          <span class="nav-text">Lokasyonlar</span>
+        </a>
+        <a href="/shelf-admin.html" class="mobile-nav-link">
+          <span class="nav-icon">⚙️</span>
+          <span class="nav-text">Raf Yönetimi</span>
+        </a>
+        <a href="/shelf-transfer.html" class="mobile-nav-link">
+          <span class="nav-icon">🔄</span>
+          <span class="nav-text">Raflar Arası Transfer</span>
+        </a>
+        <a href="/inventory-count.html" class="mobile-nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Depo Sayım</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">SSH Servis</span>
+        <a href="/service-request.html" class="mobile-nav-link">
+          <span class="nav-icon">🔧</span>
+          <span class="nav-text">Servis Talep</span>
+        </a>
+        <a href="/service-dashboard.html" class="mobile-nav-link">
+          <span class="nav-icon">📊</span>
+          <span class="nav-text">Servis Dashboard</span>
+        </a>
+        <a href="/ssh-inventory.html" class="mobile-nav-link">
+          <span class="nav-icon">📋</span>
+          <span class="nav-text">SSH Envanter</span>
+        </a>
+      </div>
+      <div class="mobile-nav-group">
+        <span class="mobile-nav-group-label">Raporlama</span>
+        <a href="/reports.html" class="mobile-nav-link">
+          <span class="nav-icon">📈</span>
+          <span class="nav-text">Stok Raporları</span>
+        </a>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="grid" style="max-width:1400px;margin:auto;padding:16px">
+  <div class="report-selector">
+    <h2>📊 Stok ve Envanter Raporları</h2>
+    <p>Deponuzun stok durumunu analiz edin ve envanter yönetimi için detaylı raporlar alın.</p>
+    
+    <div class="report-tabs">
+      <button class="report-tab active" data-report="stock-status">📦 Stok Durumu</button>
+      <button class="report-tab" data-report="low-stock">⚠️ Düşük Stok</button>
+      <button class="report-tab" data-report="abc-analysis">🔤 ABC Analizi</button>
+      <button class="report-tab" data-report="stock-movement">🔄 Stok Hareket</button>
+      <button class="report-tab" data-report="variance">📊 Sayım Varyansı</button>
+    </div>
+
+    <!-- Stok Durumu Raporu -->
+    <div id="stock-status" class="report-content active">
+      <h3>📦 Stok Durumu Raporu</h3>
+      <div class="report-filters">
+        <div class="filter-group">
+          <label>Ürün Kategorisi</label>
+          <select id="stockCategory">
+            <option value="">Tümü</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Raf Bölgesi</label>
+          <select id="stockZone">
+            <option value="">Tümü</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Minimum Stok</label>
+          <input type="number" id="minStock" placeholder="0">
+        </div>
+      </div>
+      
+      <div class="report-actions">
+        <button class="btn" id="loadStockStatus">🔍 Raporu Çalıştır</button>
+        <button class="btn btn-outline" id="exportStockStatus">📥 Excel İndir</button>
+      </div>
+
+      <div id="stockStatusResults">
+        <div class="loading">Raporu çalıştırmak için "Raporu Çalıştır" butonuna tıklayın</div>
+      </div>
+    </div>
+
+    <!-- Düşük Stok Uyarı Raporu -->
+    <div id="low-stock" class="report-content">
+      <h3>⚠️ Düşük Stok Uyarı Raporu</h3>
+      <div class="report-filters">
+        <div class="filter-group">
+          <label>Kritik Seviye</label>
+          <input type="number" id="criticalLevel" value="5" placeholder="5">
+        </div>
+        <div class="filter-group">
+          <label>Uyarı Seviyesi</label>
+          <input type="number" id="warningLevel" value="10" placeholder="10">
+        </div>
+      </div>
+      
+      <div class="report-actions">
+        <button class="btn" id="loadLowStock">🔍 Raporu Çalıştır</button>
+        <button class="btn btn-outline" id="exportLowStock">📥 Excel İndir</button>
+      </div>
+
+      <div id="lowStockResults">
+        <div class="loading">Raporu çalıştırmak için "Raporu Çalıştır" butonuna tıklayın</div>
+      </div>
+    </div>
+
+    <!-- ABC Analizi -->
+    <div id="abc-analysis" class="report-content">
+      <h3>🔤 ABC Analizi Raporu</h3>
+      <div class="report-filters">
+        <div class="filter-group">
+          <label>Başlangıç Tarihi</label>
+          <input type="date" id="abcStartDate">
+        </div>
+        <div class="filter-group">
+          <label>Bitiş Tarihi</label>
+          <input type="date" id="abcEndDate">
+        </div>
+        <div class="filter-group">
+          <label>Analiz Türü</label>
+          <select id="abcType">
+            <option value="value">Değer Bazlı</option>
+            <option value="quantity">Miktar Bazlı</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="report-actions">
+        <button class="btn" id="loadABCAnalysis">🔍 Raporu Çalıştır</button>
+        <button class="btn btn-outline" id="exportABC">📥 Excel İndir</button>
+      </div>
+
+      <div id="abcResults">
+        <div class="loading">Raporu çalıştırmak için "Raporu Çalıştır" butonuna tıklayın</div>
+      </div>
+    </div>
+
+    <!-- Stok Hareket Raporu -->
+    <div id="stock-movement" class="report-content">
+      <h3>🔄 Stok Hareket Raporu</h3>
+      <div class="report-filters">
+        <div class="filter-group">
+          <label>Başlangıç Tarihi</label>
+          <input type="date" id="movementStartDate">
+        </div>
+        <div class="filter-group">
+          <label>Bitiş Tarihi</label>
+          <input type="date" id="movementEndDate">
+        </div>
+        <div class="filter-group">
+          <label>Hareket Türü</label>
+          <select id="movementType">
+            <option value="">Tümü</option>
+            <option value="IN">Giriş</option>
+            <option value="OUT">Çıkış</option>
+            <option value="ADJUST">Düzeltme</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="report-actions">
+        <button class="btn" id="loadStockMovement">🔍 Raporu Çalıştır</button>
+        <button class="btn btn-outline" id="exportMovement">📥 Excel İndir</button>
+      </div>
+
+      <div id="movementResults">
+        <div class="loading">Raporu çalıştırmak için "Raporu Çalıştır" butonuna tıklayın</div>
+      </div>
+    </div>
+
+    <!-- Sayım Varyansı Raporu -->
+    <div id="variance" class="report-content">
+      <h3>📊 Sayım Varyansı Raporu</h3>
+      <div class="report-filters">
+        <div class="filter-group">
+          <label>Sayım Seçimi</label>
+          <select id="countSelection">
+            <option value="">Son sayımı seç...</option>
+          </select>
+        </div>
+        <div class="filter-group">
+          <label>Varyans Türü</label>
+          <select id="varianceType">
+            <option value="">Tümü</option>
+            <option value="positive">Pozitif Varyans</option>
+            <option value="negative">Negatif Varyans</option>
+          </select>
+        </div>
+      </div>
+      
+      <div class="report-actions">
+        <button class="btn" id="loadVariance">🔍 Raporu Çalıştır</button>
+        <button class="btn btn-outline" id="exportVariance">📥 Excel İndir</button>
+      </div>
+
+      <div id="varianceResults">
+        <div class="loading">Raporu çalıştırmak için "Raporu Çalıştır" butonuna tıklayın</div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+// API endpoints for reports
+const ReportAPI = {
+  stockStatus: async (filters) => {
+    const response = await fetch('/api/reports/stock-status', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(filters)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    return await response.json();
+  },
+  
+  lowStock: async (filters) => {
+    const response = await fetch('/api/reports/low-stock', {
+      method: 'POST', 
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(filters)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    return await response.json();
+  },
+  
+  abcAnalysis: async (filters) => {
+    const response = await fetch('/api/reports/abc-analysis', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(filters)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    return await response.json();
+  },
+  
+  stockMovement: async (filters) => {
+    const response = await fetch('/api/reports/stock-movement', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}, 
+      body: JSON.stringify(filters)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    return await response.json();
+  },
+  
+  variance: async (filters) => {
+    const response = await fetch('/api/reports/variance', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(filters)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    return await response.json();
+  },
+  
+  inventoryCounts: async () => {
+    const response = await fetch('/api/inventory-counts');
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      throw new Error('Response is not JSON');
+    }
+    
+    return await response.json();
+  }
+};
+
+// Tab switching
+document.querySelectorAll('.report-tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    // Remove active from all tabs and contents
+    document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.report-content').forEach(c => c.classList.remove('active'));
+    
+    // Add active to clicked tab and corresponding content
+    tab.classList.add('active');
+    const reportId = tab.dataset.report;
+    document.getElementById(reportId).classList.add('active');
+  });
+});
+
+// Stock Status Report
+document.getElementById('loadStockStatus').addEventListener('click', async () => {
+  try {
+    const filters = {
+      category: document.getElementById('stockCategory').value,
+      zone: document.getElementById('stockZone').value,
+      minStock: parseInt(document.getElementById('minStock').value) || 0
+    };
+    
+    document.getElementById('stockStatusResults').innerHTML = '<div class="loading">Yükleniyor...</div>';
+    
+    const data = await ReportAPI.stockStatus(filters);
+    renderStockStatusTable(data);
+  } catch (error) {
+    document.getElementById('stockStatusResults').innerHTML = `<div class="error">Hata: ${error.message}</div>`;
+  }
+});
+
+// Low Stock Report
+document.getElementById('loadLowStock').addEventListener('click', async () => {
+  try {
+    const filters = {
+      criticalLevel: parseInt(document.getElementById('criticalLevel').value) || 5,
+      warningLevel: parseInt(document.getElementById('warningLevel').value) || 10
+    };
+    
+    document.getElementById('lowStockResults').innerHTML = '<div class="loading">Yükleniyor...</div>';
+    
+    const data = await ReportAPI.lowStock(filters);
+    renderLowStockTable(data);
+  } catch (error) {
+    document.getElementById('lowStockResults').innerHTML = `<div class="error">Hata: ${error.message}</div>`;
+  }
+});
+
+// ABC Analysis Report
+document.getElementById('loadABCAnalysis').addEventListener('click', async () => {
+  try {
+    const filters = {
+      startDate: document.getElementById('abcStartDate').value,
+      endDate: document.getElementById('abcEndDate').value,
+      type: document.getElementById('abcType').value
+    };
+    
+    document.getElementById('abcResults').innerHTML = '<div class="loading">Yükleniyor...</div>';
+    
+    const data = await ReportAPI.abcAnalysis(filters);
+    renderABCTable(data);
+  } catch (error) {
+    document.getElementById('abcResults').innerHTML = `<div class="error">Hata: ${error.message}</div>`;
+  }
+});
+
+// Stock Movement Report  
+document.getElementById('loadStockMovement').addEventListener('click', async () => {
+  try {
+    const filters = {
+      startDate: document.getElementById('movementStartDate').value,
+      endDate: document.getElementById('movementEndDate').value,
+      type: document.getElementById('movementType').value
+    };
+    
+    document.getElementById('movementResults').innerHTML = '<div class="loading">Yükleniyor...</div>';
+    
+    const data = await ReportAPI.stockMovement(filters);
+    renderMovementTable(data);
+  } catch (error) {
+    document.getElementById('movementResults').innerHTML = `<div class="error">Hata: ${error.message}</div>`;
+  }
+});
+
+// Variance Report
+document.getElementById('loadVariance').addEventListener('click', async () => {
+  try {
+    const filters = {
+      countId: document.getElementById('countSelection').value,
+      varianceType: document.getElementById('varianceType').value
+    };
+    
+    document.getElementById('varianceResults').innerHTML = '<div class="loading">Yükleniyor...</div>';
+    
+    const data = await ReportAPI.variance(filters);
+    renderVarianceTable(data);
+  } catch (error) {
+    document.getElementById('varianceResults').innerHTML = `<div class="error">Hata: ${error.message}</div>`;
+  }
+});
+
+// Render functions
+function renderStockStatusTable(data) {
+  if (!data.success) {
+    document.getElementById('stockStatusResults').innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+    return;
+  }
+  
+  const html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Ürün Adı</th>
+          <th>Mevcut Stok</th>
+          <th>Raf Lokasyonu</th>
+          <th>Son Hareket</th>
+          <th>Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.items.map(item => `
+          <tr>
+            <td>${item.sku}</td>
+            <td>${item.product_name}</td>
+            <td>${item.stock_quantity || 0}</td>
+            <td>${item.location || '-'}</td>
+            <td>${item.last_movement ? new Date(item.last_movement).toLocaleDateString('tr-TR') : '-'}</td>
+            <td><span class="status-badge ${item.stock_quantity > 10 ? 'status-normal' : item.stock_quantity > 5 ? 'status-high' : 'status-low'}">${item.stock_quantity > 10 ? 'Normal' : item.stock_quantity > 5 ? 'Düşük' : 'Kritik'}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  document.getElementById('stockStatusResults').innerHTML = html;
+}
+
+function renderLowStockTable(data) {
+  if (!data.success) {
+    document.getElementById('lowStockResults').innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+    return;
+  }
+  
+  const html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Ürün Adı</th>
+          <th>Mevcut Stok</th>
+          <th>Kritik Seviye</th>
+          <th>Durum</th>
+          <th>Öneri</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.items.map(item => `
+          <tr>
+            <td>${item.sku}</td>
+            <td>${item.product_name}</td>
+            <td>${item.stock_quantity || 0}</td>
+            <td>${item.critical_level}</td>
+            <td><span class="status-badge ${item.stock_quantity <= item.critical_level ? 'status-low' : 'status-high'}">${item.stock_quantity <= item.critical_level ? 'Kritik' : 'Uyarı'}</span></td>
+            <td>${item.suggestion}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  document.getElementById('lowStockResults').innerHTML = html;
+}
+
+function renderABCTable(data) {
+  if (!data.success) {
+    document.getElementById('abcResults').innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+    return;
+  }
+  
+  const html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Ürün Adı</th>
+          <th>Toplam Hareket</th>
+          <th>Değer</th>
+          <th>Yüzde</th>
+          <th>ABC Sınıfı</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.items.map(item => `
+          <tr>
+            <td>${item.sku}</td>
+            <td>${item.product_name}</td>
+            <td>${item.total_movement}</td>
+            <td>${item.total_value ? item.total_value.toFixed(2) + ' ₺' : '-'}</td>
+            <td>%${item.percentage ? item.percentage.toFixed(1) : '0'}</td>
+            <td><span class="status-badge ${item.abc_class === 'A' ? 'status-low' : item.abc_class === 'B' ? 'status-high' : 'status-normal'}">${item.abc_class}</span></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  document.getElementById('abcResults').innerHTML = html;
+}
+
+function renderMovementTable(data) {
+  if (!data.success) {
+    document.getElementById('movementResults').innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+    return;
+  }
+  
+  const html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>Tarih</th>
+          <th>SKU</th>
+          <th>Ürün Adı</th>
+          <th>Hareket Türü</th>
+          <th>Miktar</th>
+          <th>Not</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.items.map(item => `
+          <tr>
+            <td>${new Date(item.created_at).toLocaleString('tr-TR')}</td>
+            <td>${item.sku}</td>
+            <td>${item.product_name}</td>
+            <td><span class="status-badge ${item.type === 'IN' ? 'status-normal' : item.type === 'OUT' ? 'status-low' : 'status-high'}">${item.type === 'IN' ? 'Giriş' : item.type === 'OUT' ? 'Çıkış' : 'Düzeltme'}</span></td>
+            <td>${item.qty > 0 ? '+' : ''}${item.qty}</td>
+            <td>${item.note || '-'}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  document.getElementById('movementResults').innerHTML = html;
+}
+
+function renderVarianceTable(data) {
+  if (!data.success) {
+    document.getElementById('varianceResults').innerHTML = `<div class="error">Hata: ${data.error}</div>`;
+    return;
+  }
+  
+  const html = `
+    <table class="report-table">
+      <thead>
+        <tr>
+          <th>SKU</th>
+          <th>Ürün Adı</th>
+          <th>Beklenen</th>
+          <th>Sayılan</th>
+          <th>Varyans</th>
+          <th>Lokasyon</th>
+          <th>Durum</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${data.items.map(item => `
+          <tr>
+            <td>${item.sku}</td>
+            <td>${item.product_name}</td>
+            <td>${item.expected_quantity}</td>
+            <td>${item.counted_quantity}</td>
+            <td><span class="status-badge ${item.variance > 0 ? 'status-normal' : item.variance < 0 ? 'status-low' : 'status-high'}">${item.variance > 0 ? '+' : ''}${item.variance}</span></td>
+            <td>${item.location_code || '-'}</td>
+            <td>${item.status}</td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>
+  `;
+  
+  document.getElementById('varianceResults').innerHTML = html;
+}
+
+// Initialize page
+document.addEventListener('DOMContentLoaded', async () => {
+  // Load inventory counts for variance report
+  try {
+    const response = await ReportAPI.inventoryCounts();
+    const counts = response.counts || response || [];
+    const select = document.getElementById('countSelection');
+    
+    if (Array.isArray(counts)) {
+      counts.forEach(count => {
+        const option = document.createElement('option');
+        option.value = count.id;
+        option.textContent = `${count.name} - ${new Date(count.created_date).toLocaleDateString('tr-TR')}`;
+        select.appendChild(option);
+      });
+    } else {
+      console.warn('Inventory counts response is not an array:', counts);
+    }
+  } catch (error) {
+    console.error('Failed to load inventory counts:', error);
+  }
+  
+  // Set default dates
+  const today = new Date();
+  const monthAgo = new Date(today.getFullYear(), today.getMonth() - 1, today.getDate());
+  
+  document.getElementById('abcStartDate').value = monthAgo.toISOString().split('T')[0];
+  document.getElementById('abcEndDate').value = today.toISOString().split('T')[0];
+  document.getElementById('movementStartDate').value = monthAgo.toISOString().split('T')[0];
+  document.getElementById('movementEndDate').value = today.toISOString().split('T')[0];
+  
+  // Excel export event listeners
+  document.getElementById('exportStockStatus').addEventListener('click', () => exportToExcel('stock-status', 'Stok_Durumu_Raporu'));
+  document.getElementById('exportLowStock').addEventListener('click', () => exportToExcel('low-stock', 'Dusuk_Stok_Raporu'));
+  document.getElementById('exportABC').addEventListener('click', () => exportToExcel('abc-analysis', 'ABC_Analizi_Raporu'));
+  document.getElementById('exportMovement').addEventListener('click', () => exportToExcel('stock-movement', 'Stok_Hareket_Raporu'));
+  document.getElementById('exportVariance').addEventListener('click', () => exportToExcel('variance', 'Sayim_Varyans_Raporu'));
+  
+  
+  // Mobile navigation toggle
+  document.getElementById('mobileNavToggle').addEventListener('click', () => {
+    const menu = document.getElementById('mobileNavMenu');
+    menu.classList.toggle('show');
+  });
+});
+
+// Excel export function
+function exportToExcel(reportType, filename) {
+  const tableContainers = {
+    'stock-status': 'stockStatusResults',
+    'low-stock': 'lowStockResults', 
+    'abc-analysis': 'abcResults',
+    'stock-movement': 'movementResults',
+    'variance': 'varianceResults'
+  };
+  
+  const containerId = tableContainers[reportType];
+  const container = document.getElementById(containerId);
+  
+  if (!container) {
+    alert('Rapor bulunamadı!');
+    return;
+  }
+  
+  const table = container.querySelector('.report-table');
+  if (!table) {
+    alert('Excel olarak indirmek için önce raporu çalıştırın!');
+    return;
+  }
+  
+  // Convert table to Excel
+  try {
+    const wb = XLSX.utils.table_to_book(table, { sheet: "Rapor" });
+    XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split('T')[0]}.xlsx`);
+  } catch (error) {
+    console.error('Excel export error:', error);
+    // Fallback to CSV if XLSX not available
+    exportTableToCSV(table, `${filename}_${new Date().toISOString().split('T')[0]}.csv`);
+  }
+}
+
+// CSV fallback function
+function exportTableToCSV(table, filename) {
+  const rows = table.querySelectorAll('tr');
+  const csvData = [];
+  
+  rows.forEach(row => {
+    const cols = row.querySelectorAll('th, td');
+    const rowData = Array.from(cols).map(col => {
+      let text = col.textContent.trim();
+      // Escape quotes and wrap in quotes if contains comma
+      if (text.includes(',') || text.includes('"')) {
+        text = '"' + text.replace(/"/g, '""') + '"';
+      }
+      return text;
+    });
+    csvData.push(rowData.join(','));
+  });
+  
+  const csvContent = csvData.join('\n');
+  const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+  const link = document.createElement('a');
+  
+  if (link.download !== undefined) {
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+}
+
+
+// Page-specific callback after auth
+window.onAuthCompleted = function() {
+  console.log('Reports page authentication completed');
+};
+</script>
+
+</body>
+</html>

@@ -1,0 +1,505 @@
+
+-- WMS schema (inspired by provided example): multi-package product support, orders, picking, scans, stock movements
+
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS products (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  sku TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  description TEXT,
+  main_barcode TEXT,
+  price REAL DEFAULT 0,
+  color TEXT,
+  main_product_name TEXT,
+  main_product_name_en TEXT,
+  wix_product_id TEXT,
+  wix_variant_id TEXT,
+  netsis_id TEXT UNIQUE, -- Netsis'teki ürün ID'si
+  netsis_code TEXT,      -- Netsis'teki ürün kodu
+  netsis_data TEXT,      -- Netsis'ten gelen tüm JSON verisi
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS product_packages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  package_number TEXT, -- Paket numarası (PK-CC-BE-S-GR5-1)
+  product_name TEXT, -- Ürün adı (Türkçe) - paket formundaki "Ürün Adı *" alanı
+  product_name_en TEXT, -- Ürün adı (İngilizce) - paket formundaki "Product Name" alanı
+  package_name TEXT NOT NULL, -- Paket adı (Türkçe) - paket formundaki "Paket Adı *" alanı
+  package_name_en TEXT, -- Paket adı (İngilizce) - paket formundaki "Package Name" alanı
+  color TEXT, -- Ürün rengi (Türkçe)
+  color_en TEXT, -- Ürün rengi (İngilizce)
+  barcode TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  width REAL DEFAULT 0, -- En (cm)
+  length REAL DEFAULT 0, -- Boy (cm) 
+  height REAL DEFAULT 0, -- Yükseklik (cm)
+  weight_kg REAL DEFAULT 0, -- Ağırlık (kg)
+  volume_m3 REAL DEFAULT 0, -- Hacim (m³)
+  contents TEXT, -- Paket içeriği (Türkçe)
+  contents_en TEXT, -- Paket içeriği (İngilizce)
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(product_id, barcode)
+);
+
+CREATE TABLE IF NOT EXISTS orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_number TEXT UNIQUE NOT NULL,
+  customer_name TEXT,
+  status TEXT NOT NULL DEFAULT 'open', -- open|picking|fulfilled|cancelled
+  delivery_status TEXT DEFAULT NULL, -- pending|delivered for delivery verification system
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS order_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  sku TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  picked_qty INTEGER NOT NULL DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(order_id, product_id)
+);
+
+CREATE TABLE IF NOT EXISTS picks (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  status TEXT NOT NULL DEFAULT 'active', -- active|completed
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS pick_scans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  pick_id INTEGER NOT NULL REFERENCES picks(id) ON DELETE CASCADE,
+  order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  package_id INTEGER REFERENCES product_packages(id) ON DELETE SET NULL,
+  barcode TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  type TEXT NOT NULL, -- IN|OUT|ADJUST
+  qty INTEGER NOT NULL,
+  note TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+
+-- Locations and product_locations (bin-level inventory)
+CREATE TABLE IF NOT EXISTS locations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  code TEXT UNIQUE NOT NULL,
+  name TEXT
+);
+
+CREATE TABLE IF NOT EXISTS product_locations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  location_id INTEGER NOT NULL REFERENCES locations(id) ON DELETE CASCADE,
+  on_hand INTEGER NOT NULL DEFAULT 0,
+  UNIQUE(product_id, location_id)
+);
+
+-- SSH Service Tracking Tables
+
+-- Service Requests - Ana servis talep tablosu
+CREATE TABLE IF NOT EXISTS service_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  customer_name TEXT NOT NULL,
+  customer_phone TEXT,
+  customer_email TEXT,
+  order_number TEXT,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  product_name TEXT NOT NULL,
+  product_sku TEXT NOT NULL,
+  package_id INTEGER REFERENCES product_packages(id),
+  package_number TEXT,
+  package_name TEXT,
+  package_barcode TEXT,
+  issue_description TEXT NOT NULL,
+  required_part TEXT,
+  required_quantity INTEGER DEFAULT 1,
+  priority TEXT NOT NULL DEFAULT 'normal', -- urgent|high|normal|low
+  status TEXT NOT NULL DEFAULT 'pending', -- pending|sourcing|package_opening|ssh_storage|factory_order|completed|cancelled
+  notes TEXT,
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completed_date DATETIME,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Package Openings - Paket açma işlemleri
+CREATE TABLE IF NOT EXISTS package_openings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  service_request_id INTEGER NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
+  package_id INTEGER NOT NULL REFERENCES product_packages(id),
+  original_package_barcode TEXT NOT NULL,
+  opened_quantity INTEGER NOT NULL,
+  used_quantity INTEGER NOT NULL DEFAULT 0,
+  ssh_quantity INTEGER NOT NULL DEFAULT 0,
+  source_location TEXT, -- Paketin alındığı raf kodu
+  opening_method TEXT DEFAULT 'partial', -- partial|complete
+  opened_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  opened_by TEXT,
+  notes TEXT
+);
+
+-- SSH Inventory - SSH alanında bulunan parçalar
+CREATE TABLE IF NOT EXISTS ssh_inventory (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  part_name TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 0,
+  location_code TEXT,
+  source_package_barcode TEXT,
+  source_opening_id INTEGER REFERENCES package_openings(id),
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_used_date DATETIME,
+  is_available BOOLEAN DEFAULT 1
+);
+
+-- Service Movements - Servis hareket geçmişi
+CREATE TABLE IF NOT EXISTS service_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  service_request_id INTEGER NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
+  movement_type TEXT NOT NULL, -- status_change|part_sourced|package_opened|ssh_stored|factory_ordered|cost_added
+  description TEXT NOT NULL,
+  quantity INTEGER DEFAULT 0,
+  cost REAL DEFAULT 0,
+  previous_status TEXT,
+  new_status TEXT,
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_by TEXT
+);
+
+-- Factory Orders - Fabrika sipariş takibi
+CREATE TABLE IF NOT EXISTS factory_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  service_request_id INTEGER NOT NULL REFERENCES service_requests(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  required_part TEXT NOT NULL,
+  order_quantity INTEGER NOT NULL,
+  order_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expected_date DATETIME,
+  received_date DATETIME,
+  received_quantity INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'ordered', -- ordered|in_production|shipped|received|cancelled
+  supplier TEXT,
+  order_reference TEXT,
+  cost REAL DEFAULT 0,
+  notes TEXT
+);
+
+-- Inventory Count Tables - Depo Sayım Sistemi
+
+-- Inventory Counts - Ana sayım tablosu
+CREATE TABLE IF NOT EXISTS inventory_counts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL, -- full|spot|shelf
+  status TEXT NOT NULL DEFAULT 'active', -- active|completed|cancelled
+  description TEXT,
+  product_filter TEXT, -- Nokta sayım için ürün filtresi
+  shelf_filter TEXT, -- Raf sayım için raf filtresi
+  counted_items INTEGER DEFAULT 0,
+  variance_items INTEGER DEFAULT 0,
+  total_variance INTEGER DEFAULT 0,
+  created_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completed_date DATETIME,
+  created_by TEXT,
+  completed_by TEXT
+);
+
+-- Inventory Count Items - Sayım kalemleri
+CREATE TABLE IF NOT EXISTS inventory_count_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  count_id INTEGER NOT NULL REFERENCES inventory_counts(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  sku TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  barcode TEXT,
+  package_barcode TEXT,
+  location_code TEXT,
+  shelf_id INTEGER REFERENCES shelves(id),
+  expected_quantity INTEGER NOT NULL DEFAULT 0,
+  counted_quantity INTEGER DEFAULT 0,
+  variance INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending', -- pending|counted|skipped
+  notes TEXT,
+  counted_date DATETIME,
+  counted_by TEXT
+);
+
+-- Raflar tablosu
+CREATE TABLE IF NOT EXISTS shelves (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  shelf_code TEXT UNIQUE NOT NULL,  -- Raf barkodu
+  shelf_name TEXT,                  -- Raf adı (A1-01, B2-15 vs)
+  zone TEXT,                        -- Bölge (A, B, C vs)
+  aisle TEXT,                       -- Koridor (1, 2, 3 vs)
+  level INTEGER,                    -- Seviye (1=alt, 2=orta, 3=üst)
+  capacity INTEGER DEFAULT 100,     -- Maksimum kapasite
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Raf-Paket ilişkileri tablosu
+CREATE TABLE IF NOT EXISTS shelf_packages (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  shelf_id INTEGER NOT NULL REFERENCES shelves(id) ON DELETE CASCADE,
+  package_id INTEGER NOT NULL REFERENCES product_packages(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  quantity INTEGER NOT NULL DEFAULT 0,      -- Bu rafta kaç adet var
+  assigned_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+  assigned_by TEXT,                         -- Kim yerleştirdi
+  UNIQUE(shelf_id, package_id)
+);
+
+-- Raf hareketleri tablosu (audit trail)
+CREATE TABLE IF NOT EXISTS shelf_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  shelf_id INTEGER NOT NULL REFERENCES shelves(id) ON DELETE CASCADE,
+  package_id INTEGER NOT NULL REFERENCES product_packages(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  movement_type TEXT NOT NULL,              -- 'IN' (giriş), 'OUT' (çıkış), 'TRANSFER' (transfer)
+  quantity_change INTEGER NOT NULL,        -- +5, -3, vs
+  previous_quantity INTEGER NOT NULL,      -- Önceki miktar
+  new_quantity INTEGER NOT NULL,           -- Yeni miktar
+  barcode_scanned TEXT,                    -- Okutulan barkod
+  notes TEXT,                              -- Notlar
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_by TEXT                          -- İşlemi yapan kişi
+);
+
+-- Index'ler performans için
+CREATE INDEX IF NOT EXISTS idx_shelves_code ON shelves(shelf_code);
+CREATE INDEX IF NOT EXISTS idx_shelf_packages_shelf ON shelf_packages(shelf_id);
+CREATE INDEX IF NOT EXISTS idx_shelf_packages_package ON shelf_packages(package_id);
+CREATE INDEX IF NOT EXISTS idx_shelf_movements_shelf ON shelf_movements(shelf_id);
+CREATE INDEX IF NOT EXISTS idx_shelf_movements_date ON shelf_movements(created_at);
+
+-- Delivery Confirmation Tables - Teslimat Kanıtı Sistemi
+
+-- Deliveries - Ana teslimat tablosu
+CREATE TABLE IF NOT EXISTS deliveries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  order_id INTEGER NOT NULL REFERENCES orders(id) ON DELETE CASCADE,
+  order_number TEXT NOT NULL,
+  customer_name TEXT,
+  delivery_status TEXT NOT NULL DEFAULT 'pending', -- pending|delivered
+  delivered_at DATETIME,
+  customer_signature TEXT, -- Base64 encoded signature
+  delivery_notes TEXT,
+  gps_latitude REAL,
+  gps_longitude REAL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Delivery Scans - Teslimat sırasında yapılan barkod taramaları
+CREATE TABLE IF NOT EXISTS delivery_scans (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  delivery_id INTEGER NOT NULL REFERENCES deliveries(id) ON DELETE CASCADE,
+  order_item_id INTEGER NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+  product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
+  package_id INTEGER REFERENCES product_packages(id) ON DELETE SET NULL,
+  barcode TEXT NOT NULL,
+  scanned_quantity INTEGER NOT NULL DEFAULT 1,
+  scan_status TEXT NOT NULL DEFAULT 'verified', -- verified|missing|extra
+  notes TEXT,
+  scanned_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  scanned_by TEXT
+);
+
+-- Index'ler performans için
+CREATE INDEX IF NOT EXISTS idx_deliveries_order ON deliveries(order_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_status ON deliveries(delivery_status);
+CREATE INDEX IF NOT EXISTS idx_delivery_scans_delivery ON delivery_scans(delivery_id);
+CREATE INDEX IF NOT EXISTS idx_delivery_scans_item ON delivery_scans(order_item_id);
+
+-- User Management Tables
+
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  role TEXT NOT NULL DEFAULT 'operator',
+  full_name TEXT,
+  email TEXT,
+  active INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  last_login DATETIME
+);
+
+-- Role permissions table - CRITICAL MISSING TABLE!
+CREATE TABLE IF NOT EXISTS role_permissions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  role TEXT NOT NULL,
+  permission TEXT NOT NULL,
+  enabled INTEGER DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(role, permission)
+);
+
+-- Service Management Tables
+
+-- Service requests
+CREATE TABLE IF NOT EXISTS service_requests (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  request_number TEXT UNIQUE NOT NULL,
+  customer_name TEXT,
+  product_id INTEGER REFERENCES products(id),
+  package_id INTEGER REFERENCES product_packages(id),
+  package_number TEXT,
+  package_name TEXT,
+  package_barcode TEXT,
+  required_part TEXT,
+  quantity_needed INTEGER DEFAULT 1,
+  priority TEXT DEFAULT 'medium',
+  status TEXT DEFAULT 'pending',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- SSH inventory table
+CREATE TABLE IF NOT EXISTS ssh_inventory (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER REFERENCES products(id),
+  package_id INTEGER REFERENCES product_packages(id),
+  package_number TEXT,
+  product_name TEXT,
+  part_description TEXT,
+  quantity INTEGER DEFAULT 0,
+  location_code TEXT DEFAULT 'SSH-01-01',
+  last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+  source_info TEXT
+);
+
+-- Package openings table  
+CREATE TABLE IF NOT EXISTS package_openings (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  service_request_id INTEGER REFERENCES service_requests(id),
+  package_id INTEGER REFERENCES product_packages(id),
+  package_barcode TEXT,
+  opening_method TEXT,
+  source_location TEXT,
+  opened_by TEXT,
+  opened_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  completion_status TEXT DEFAULT 'completed'
+);
+
+-- Service movements table
+CREATE TABLE IF NOT EXISTS service_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  from_location TEXT,
+  to_location TEXT,
+  product_id INTEGER REFERENCES products(id),
+  package_id INTEGER REFERENCES product_packages(id),
+  quantity INTEGER DEFAULT 1,
+  movement_type TEXT,
+  moved_by TEXT,
+  moved_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  notes TEXT
+);
+
+-- Stock movements table
+CREATE TABLE IF NOT EXISTS stock_movements (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_id INTEGER NOT NULL REFERENCES products(id),
+  package_id INTEGER REFERENCES product_packages(id),
+  movement_type TEXT NOT NULL,
+  quantity_change INTEGER NOT NULL,
+  previous_quantity INTEGER,
+  new_quantity INTEGER,
+  location_code TEXT,
+  reference_id INTEGER,
+  reference_type TEXT,
+  notes TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  created_by TEXT
+);
+
+-- Inventory counts table
+CREATE TABLE IF NOT EXISTS inventory_counts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  count_name TEXT NOT NULL,
+  location_filter TEXT,
+  status TEXT NOT NULL DEFAULT 'preparing',
+  total_items INTEGER DEFAULT 0,
+  counted_items INTEGER DEFAULT 0,
+  variance_items INTEGER DEFAULT 0,
+  created_by TEXT,
+  started_at DATETIME,
+  completed_at DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Inventory count items table
+CREATE TABLE IF NOT EXISTS inventory_count_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  count_id INTEGER NOT NULL,
+  product_id INTEGER NOT NULL,
+  sku TEXT NOT NULL,
+  product_name TEXT NOT NULL,
+  barcode TEXT,
+  package_barcode TEXT,
+  package_number TEXT,
+  location_code TEXT,
+  shelf_id INTEGER,
+  expected_quantity INTEGER NOT NULL DEFAULT 0,
+  counted_quantity INTEGER DEFAULT 0,
+  variance INTEGER DEFAULT 0,
+  status TEXT NOT NULL DEFAULT 'pending',
+  notes TEXT,
+  counted_date DATETIME,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Factory orders table
+CREATE TABLE IF NOT EXISTS factory_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  service_request_id INTEGER REFERENCES service_requests(id),
+  order_number TEXT UNIQUE,
+  product_description TEXT,
+  quantity_ordered INTEGER,
+  status TEXT DEFAULT 'pending',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  expected_delivery DATETIME,
+  received_at DATETIME
+);
+
+-- Netsis integration tables
+CREATE TABLE IF NOT EXISTS netsis_orders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  wms_order_id INTEGER REFERENCES orders(id),
+  netsis_order_id TEXT UNIQUE,
+  netsis_data TEXT,
+  sync_status TEXT DEFAULT 'pending',
+  error_message TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  synced_at DATETIME
+);
+
+CREATE TABLE IF NOT EXISTS netsis_order_lines (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  netsis_order_id INTEGER REFERENCES netsis_orders(id),
+  wms_item_id INTEGER REFERENCES order_items(id),
+  netsis_line_data TEXT,
+  line_number INTEGER,
+  sync_status TEXT DEFAULT 'pending',
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Optional Wix identifiers on products (ignored if columns already exist)
+-- These will be added via migrate.js if missing in an existing DB

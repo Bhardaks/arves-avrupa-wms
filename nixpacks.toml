@@ -1,0 +1,8 @@
+[phases.setup]
+nixPkgs = ['nodejs_18', 'npm-9_x', 'python3', 'gcc', 'gnumake']
+
+[phases.build]
+cmd = 'npm ci'
+
+[phases.start]
+cmd = 'npm run migrate:railway && npm start'

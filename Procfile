@@ -1,0 +1,1 @@
+web: npm run migrate:railway && npm start
